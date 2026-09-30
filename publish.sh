@@ -17,4 +17,14 @@ if [ -f _quarto-class.yml ]; then
     fi
   done
 fi
-quarto publish gh-pages --no-render --no-prompt
+
+# Push _site as the sole content of the gh-pages branch.
+touch _site/.nojekyll
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+cp -R _site/ "$tmp"
+git -C "$tmp" init -q -b gh-pages
+git -C "$tmp" add -A
+git -C "$tmp" commit -q -m "Publish slides from $(git rev-parse --short HEAD)"
+git -C "$tmp" push -q -f "$(git remote get-url origin)" gh-pages
+echo "Published to gh-pages."
