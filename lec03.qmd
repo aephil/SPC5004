@@ -82,7 +82,7 @@ Other common examples include pronouns:
 
 . . .
 
-Here *it* means *chicken* and definitely not *street*.
+Here *it* means *chicken* and definitely not *road*.
 
 
 ## Multi-head attention
