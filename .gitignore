@@ -11,3 +11,6 @@
 /_quarto-class.yml
 
 **/*.quarto_ipynb
+
+# Local notes
+/UPDATE.md
