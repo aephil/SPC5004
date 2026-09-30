@@ -163,7 +163,7 @@ In the first semester, we will focus on the *transformer* and [*diffuser*]{.mark
 
 . . .
 
-In the second semester, you will continue to a range of further applications including audio generation, coding and agentic AI.
+In the second semester, you will continue to a range of further “AI engineering” applications, including model deployment, scaling solutions, performing evaluations, and practical fine-tuning. 
 
 ## Assessment
 

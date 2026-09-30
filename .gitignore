@@ -1,0 +1,13 @@
+/.quarto/
+/_site/
+*.quarto_ipynb*
+.DS_Store
+
+# Old in-place render output
+/lec*.html
+/lec*_files/
+
+# Attendance access codes (see access-code.lua)
+/_quarto-class.yml
+
+**/*.quarto_ipynb

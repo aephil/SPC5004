@@ -68,6 +68,24 @@ mark {
   display: flex !important;
   flex-direction: column;
 
+  // reveal.js already makes each slide section `position: absolute`
+  // (that's how it stacks past/present/future slides), so it's already
+  // a containing block for this — no need to set position here, and
+  // doing so would pull the title slide into normal document flow and
+  // push every slide after it down the page.
+  .access-code {
+    position: absolute;
+    top: 0;
+    left: 0;
+    margin: 0;
+    padding: 0.25em 0.6em;
+    font-size: 0.5em;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    border: 2px solid currentColor;
+    border-radius: 0.25em;
+  }
+
   .title-main {
     flex: 1;
     display: flex;

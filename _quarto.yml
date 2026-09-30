@@ -1,0 +1,19 @@
+project:
+  type: default
+  output-dir: _site
+  # Decks published to GitHub Pages; add each lecture when it's ready.
+  render:
+    - lec01.qmd
+    - lec02.qmd
+    - lec03.qmd
+  resources:
+    - index.html
+
+# Access codes live in the git-ignored _quarto-class.yml (the default
+# profile) and are injected by this filter; publish.sh renders with the
+# "publish" profile instead, so they never reach the site.
+profile:
+  default: class
+
+filters:
+  - access-code.lua

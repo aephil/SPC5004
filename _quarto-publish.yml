@@ -1,0 +1,3 @@
+# Profile used by publish.sh for GitHub Pages. Selecting it stops the
+# default "class" profile (and its access codes) from loading.
+access-codes: {}

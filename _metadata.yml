@@ -1,0 +1,11 @@
+subtitle: "SPC5004: Tools and Applications of Generative AI"
+author: "Prof. Anthony E. Phillips"
+date-format: "dddd, D MMMM YYYY"
+jupyter: genai
+format:
+    revealjs:
+        theme: [simple, spc5004.scss]
+        incremental: false
+        template-partials:
+            - title-slide.html
+        fig-align: center

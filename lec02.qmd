@@ -58,6 +58,17 @@ Note that the space is included in the subsequent token: *e.g.*, token number 26
 
 ## Tokenisation
 
+If we look at the raw vocabulary entries rather than the decoded text, that leading space is visible directly as a `Ġ` prefix:
+
+```{python}
+#| echo: true
+tokenizer.convert_ids_to_tokens(input_ids)
+```
+
+For more on this sort of utility function, see `https://huggingface.co/docs/transformers/v5.17.0/en/internal/tokenization_utils`.
+
+## Tokenisation
+
 ```{python}
 #| echo: true
 prompt = "DNA stands for deoxyribonucleic acid."
@@ -71,6 +82,18 @@ for t in input_ids:
 Here the long word `deoxyribonucleic` is broken up into smaller tokens. Some (`" de"`, `"oxy"`) correspond to the semantic division of the English word, while others (`"ucle"`) do not.
 
 Interestingly, `"DNA"` is apparently common enough to be a token in its own right.
+
+## Special tokens
+
+Tokenisers may also reserve tokens that indicate structure rather than a piece of text:
+
+* `[PAD]`: pads shorter sequences up to a common length so they can be batched together.
+* `[BOS]`/`[EOS]` (or `<s>`/`</s>`): mark the beginning/end of a sequence.
+* `[CLS]`: a summary token, often prepended so its final representation can be used for sequence-level classification.
+* `[SEP]`: separates two distinct segments packed into the same input (*e.g.*, two sentences).
+* `[MASK]`: a placeholder for a hidden token, used when training masked language models.
+
+Not every tokeniser uses all of these — it depends on how the model was trained.
 
 ---
 
@@ -128,3 +151,71 @@ final_logits.softmax(dim=0)[predicted_logit]
 ::: aside
 Recall that $\text{softmax}(\mathbf{z})_i = \frac{\exp(z_i)}{\sum_i\exp(z_i)}.$ These values must therefore be positive and sum to 1.
 :::
+
+## Decoding
+
+To generate more than one token, we repeat this process: predict a next-token distribution, pick a token, append it, and feed the longer sequence back in.
+
+Always picking the single most likely next token is called **greedy search**.
+
+```{python}
+#| echo: true
+#| output-location: fragment
+prompt = "Once upon a"
+input_ids = tokenizer(prompt, return_tensors="pt").input_ids
+with no_grad():
+    output_ids = model.generate(input_ids, max_new_tokens=15, do_sample=False)
+tokenizer.decode(output_ids[0])
+```
+
+. . .
+
+Greedy search is deterministic, but always taking the locally-best token can miss a better *sequence* overall, and tends to produce repetitive text.
+
+## Decoding
+
+Instead of always taking the maximum, we can *sample* from the predicted distribution.
+
+:::{.incremental}
+* **Temperature** rescales the logits before the softmax: low temperature sharpens the distribution towards greedy behaviour, high temperature flattens it towards uniform (more random) sampling.
+* **Top-$k$ sampling** restricts sampling to the $k$ most likely tokens, discarding the long unlikely tail.
+* **Top-$p$ (nucleus) sampling** instead keeps the smallest set of tokens whose cumulative probability reaches $p$, adapting how many tokens are considered to how confident the model is.
+:::
+
+```{python}
+#| echo: true
+#| output-location: fragment
+with no_grad():
+    output_ids = model.generate(
+        input_ids, max_new_tokens=15,
+        do_sample=True, temperature=0.8, top_k=50, top_p=0.9,
+    )
+tokenizer.decode(output_ids[0])
+```
+
+
+## Decoding
+
+Looking only at the next token might lead us to discard the start of a useful sentence.
+
+**Beam search** considers the $n$ most promising partial sequences ("beams") and expand them *all*, finally returning the highest-scoring complete sequence.
+
+:::{.incremental}
+* More likely than greedy search to find a high-probability sequence overall.
+* Still deterministic and may give generic, repetitive text.
+* Costs roughly $n\times$ the compute of greedy search, for $n$ beams.
+:::
+
+```{python}
+#| echo: true
+#| output-location: fragment
+with no_grad():
+    output_ids = model.generate(input_ids, max_new_tokens=15, num_beams=4, do_sample=False)
+tokenizer.decode(output_ids[0])
+```
+
+## `git` update
+
+Please go to `https://github.qmul.ac.uk/` and check you can log in.
+
+Otherwise, don’t worry about `git` for now; we will run a short tutorial as part of the labs next week, to help you begin compiling your code portfolio.
