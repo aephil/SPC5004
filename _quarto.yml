@@ -6,6 +6,7 @@ project:
     - lec01.qmd
     - lec02.qmd
     - lec03.qmd
+    - lec04.qmd
   resources:
     - index.html
 

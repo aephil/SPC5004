@@ -1,0 +1,441 @@
+---
+title: "Attention as dictionary lookup"
+lecture-number: 4
+date: 2026-10-02
+---
+
+# Soft dictionary lookup
+
+## A hard dictionary lookup
+
+A Python dictionary maps **keys** to **values**. Looking something up is exact: you supply a key, and get back exactly the value stored under it.
+
+```{python}
+#| echo: true
+#| output-location: fragment
+capitals = {"France": "Paris", "Germany": "Berlin", "Italy": "Rome",
+            "Spain": "Madrid", "Austria": "Vienna", "Australia": "Canberra"}
+capitals["France"]
+```
+
+. . .
+
+```{python}
+#| echo: true
+#| error: true
+#| output-location: fragment
+capitals["Frnace"]
+```
+
+## What would a person do?
+
+No human reader is defeated by `"Frnace"`. We'd notice that it *looks a lot like* `"France"`, and answer `"Paris"`.
+
+:::{.incremental}
+* A hard lookup asks a binary, yes/no question of each key: *is this exactly my query?*
+* A tolerant lookup instead asks for a continuous value: *how similar is this key to my query?*
+* To answer that, we need to turn names into something we can measure similarity between — **vectors**.
+:::
+
+## Turning names into vectors
+
+A crude but simple choice: describe each name by how many times each letter of the alphabet appears in it.
+
+```{python}
+#| echo: true
+import string, torch
+torch.set_printoptions(precision=2, sci_mode=False)
+
+def letter_counts(word):
+    word = word.lower()
+    return torch.tensor([float(word.count(c)) for c in string.ascii_lowercase])
+
+countries = list(capitals)
+keys = torch.stack([letter_counts(c) for c in countries])   # one row per country
+keys.shape
+```
+
+. . .
+
+Each country is now a point in a 26-dimensional space. Our query `"Frnace"` is another point in the same space.
+
+## Measuring similarity
+
+To score how well the query matches each key, we use **cosine similarity** (remember this from last year’s maths module): the dot product of two vectors after scaling each to length one. It is $1$ when they point the same way, $0$ when they are orthogonal, and $-1$ when they point in opposite directions.
+
+```{python}
+#| echo: true
+#| output-location: fragment
+def similarities(query):
+    q = letter_counts(query)
+    return torch.nn.functional.cosine_similarity(q, keys, dim=-1)
+
+{c: round(s, 2) for c, s in zip(countries, similarities("Frnace").tolist())}
+```
+
+. . .
+
+`"France"` is the clear winner. (In fact it scores a perfect $1$: `"Frnace"` and `"France"` contain exactly the same letters!)
+
+## Hard or soft?
+
+Now we have a score for every key. There are two things we could do with them.
+
+:::{.incremental}
+* **Hard (fuzzy) lookup**: pick the best-scoring key and return its value. This is how a spell-checker works — `"Frnace"` → `"France"` → `"Paris"`.
+* **Soft lookup**: return a *weighted blend* of **all** the values, weighting each by how well its key matched.
+:::
+
+## Blending needs vectors
+
+A soft lookup sounds odd: what is, say, $0.9 \times \text{Paris} + 0.1 \times \text{Berlin}$?
+
+. . .
+
+It only makes sense if the **values are vectors**, which can be added and scaled. (Inside a neural network, they always are.)
+
+. . .
+
+The simplest choice: represent each capital as a **one-hot vector**, like we previously saw when discussing tokens.
+
+```{python}
+#| echo: true
+#| output-location: fragment
+answers = list(capitals.values())
+values = torch.eye(len(answers))     # row i is the one-hot vector for capital i
+values
+```
+
+::: aside
+Rows and columns: Paris, Berlin, Rome, Madrid, Vienna, Canberra.
+:::
+
+## From scores to weights
+
+To blend the values, the scores must become **weights**: positive, and summing to one. Softmax does exactly this, just like for logits.
+
+```{python}
+#| echo: true
+#| output-location: fragment
+scores = similarities("Frnace")
+scores.softmax(dim=0)
+```
+
+. . .
+
+That's disappointingly flat: cosine similarities all lie between 0 and 1, so softmax can't separate them much. Scaling the scores up first makes softmax more decisive, just like lowering the **temperature** when sampling:
+
+```{python}
+#| echo: true
+#| output-location: fragment
+weights = (10 * scores).softmax(dim=0)
+weights
+```
+
+::: aside
+Entries: France, Germany, Italy, Spain, Austria, Australia.
+:::
+
+## Blending the values
+
+```{python}
+#| echo: true
+#| output-location: fragment
+blend = weights @ values
+{a: round(p, 2) for a, p in zip(answers, blend.tolist())}
+```
+
+. . .
+
+A weighted blend of one-hot vectors is a **probability distribution** over the answers. Here the lookup is 97% sure the answer is Paris.
+
+. . .
+
+Picking the most probable entry recovers the hard (fuzzy) lookup. So the soft lookup gives us *more* information, not less.
+
+## The recipe
+
+The whole soft lookup is three steps:
+
+1. **Score** the query against every key (similarity).
+2. **Normalise** the scores into weights (softmax).
+3. **Blend** the values using those weights (weighted sum).
+
+## An ambiguous typo
+
+What about `"Austraia"`? Is that Austria or Australia?
+
+```{python}
+#| echo: true
+#| output-location: fragment
+weights = (10 * similarities("Austraia")).softmax(dim=0)
+blend = weights @ values
+{a: round(p, 2) for a, p in zip(answers, blend.tolist())}
+```
+
+. . .
+
+The lookup hedges its bets between Vienna and Canberra — which is exactly what a sensible human reader would do, too.
+
+## Why soft lookup?
+
+:::{.incremental}
+* **Tolerance**: a near-miss query still retrieves something sensible, instead of failing.
+* **Graded answers**: when the query is ambiguous, the weights tell us *how* ambiguous.
+* **Differentiability**: a small change to the query produces a small change in the output. There is no all-or-nothing jump, so we can train the whole thing with gradient descent. This is the real reason neural networks use soft lookup.
+* **But**: inside a network, the values are dense embeddings rather than one-hot vectors. Then a blend is a “mixture of meanings”, which *need not correspond to any single word*.
+:::
+
+## What counts as "similar"?
+
+Our letter-count vectors think `"Frnace"` and `"France"` are *identical*. They would equally think `"Mali"` and `"Lima"` are identical.
+
+. . .
+
+The representation we choose for queries and keys **decides what counts as a match**. Letter counts are good at catching typos, and useless for almost anything else.
+
+. . .
+
+A real transformer doesn't use hand-designed representations; it **learns** them as part of the training process.
+
+## From dictionaries to self-attention
+
+Consider:
+
+`The student studied AI because it is interesting.`
+
+. . .
+
+Self-attention performs a soft lookup for *every token in the sequence at once*.
+
+:::{.incremental}
+* Each token issues a **query**: *what am I looking for?* (`it`: "I need the noun I refer to — and it won't be a person.")
+* Each token offers a **key**: *what can I be found by?* (`AI`: "I am a noun, and not a person.")
+* Each token carries a **value**: *what will I hand over if chosen?* (`AI`: information about AI.)
+* The output for `it` is the blend of all the values, weighted by how well `it`'s query matched each key.
+:::
+
+. . .
+
+The dictionary is no longer fixed in advance: the keys and values come from the *same sentence* as the queries.
+
+# Queries, keys and values
+
+## Why not use the embeddings directly?
+
+The simplest idea would be to use each token's embedding $\mathbf{x}$ as its query, its key *and* its value. 
+
+This has three problems.
+
+:::{.incremental}
+* **Every token matches itself strongly.** A vector always points exactly the same way as itself, so each token would attend heavily to... itself.
+* **Matching is symmetric.** $\mathbf{x}_\text{it} \cdot \mathbf{x}_\text{AI} = \mathbf{x}_\text{AI} \cdot \mathbf{x}_\text{it}$. But `it` needs `AI` much more than `AI` needs `it`.
+* **Matching is tied to content.** The features that make a good match (grammatical role, say) are not necessarily the information worth passing on (meaning).
+:::
+
+. . .
+
+In the dictionary analogy, we search by country name, but we get back a city. The key and the value are different things.
+
+## Three separate roles
+
+So each token gets **three different vectors**, one for each role.
+
+| | Asks | Analogy: a library |
+|---|---|---|
+| **Query** $\mathbf{q}$ | What am I looking for? | Your search terms |
+| **Key** $\mathbf{k}$ | What can I be found by? | Each book's catalogue entry |
+| **Value** $\mathbf{v}$ | What do I hand over? | The book itself |
+
+. . .
+
+The query is only ever compared with keys; values are never compared with anything, only blended. So the three vectors are free to encode completely different features of the same token.
+
+## Learned projections
+
+In a transformer, each vector is produced from the token's embedding by multiplying by a **weight matrix**:
+
+$$\mathbf{q} = \mathbf{x} W_Q \qquad \mathbf{k} = \mathbf{x} W_K \qquad \mathbf{v} = \mathbf{x} W_V$$
+
+:::{.incremental}
+* Think of each matrix as a “lens”: it picks out, and recombines, the features of $\mathbf{x}$ that matter for that role.
+* The *same* three matrices are used for every token. A token's query, key and value differ from another token's only because their embeddings differ.
+* Nobody designs $W_Q$, $W_K$ and $W_V$. They are initialised to random values, and are learned by gradient descent along with the rest of the training. Recall that this is only possible because the lookup is soft.
+:::
+
+## All tokens at once
+
+We stack the $n$ token embeddings as the rows of a matrix $X$, so every token's query, key and value can be computed in one go:
+
+$$Q = XW_Q \qquad K = XW_K \qquad V = XW_V$$
+
+| Matrix | Shape | Row $i$ is |
+|---|---|---|
+| $X$ | $n \times d$ | embedding of token $i$ |
+| $Q$ | $n \times d_k$ | query of token $i$ |
+| $K$ | $n \times d_k$ | key of token $i$ |
+| $V$ | $n \times d_v$ | value of token $i$ |
+
+. . .
+
+Queries and keys must have the same length $d_k$, because we take their dot product. Values can have any length $d_v$: that sets the size of the output.
+
+## A toy example
+
+Let's build a hand-made version for four of the tokens. Give each a 4-dimensional embedding whose features we can interpret:
+
+```{python}
+#| echo: true
+#| output-location: fragment
+tokens = ["student", "AI", "it", "interesting"]
+#                  noun  person  pronoun  adjective
+X = torch.tensor([[1.,   1.,     0.,      0.],     # student
+                  [1.,   0.,     0.,      0.],     # AI
+                  [0.,   0.,     1.,      0.],     # it
+                  [0.,   0.,     0.,      1.]])    # interesting
+X @ X.T
+```
+
+. . .
+
+Using the embeddings directly, `it` matches only itself, and has nothing at all in common with `AI`.
+
+::: aside
+Rows and columns of `X @ X.T`: `student`, `AI`, `it`, `interesting`.
+
+Real learned embeddings and projections are *not* this neatly interpretable — we're choosing the features by hand to see the mechanism.
+:::
+
+## Choosing the lenses
+
+Let queries and keys live in a 2-dimensional space ($d_k = 2$), whose two directions mean "noun" and "person".
+
+```{python}
+#| echo: true
+#                   noun  person
+W_K = torch.tensor([[1.,   0.],     # a noun advertises "noun"
+                    [0.,   1.],     # a person advertises "person"
+                    [0.,   0.],
+                    [0.,   0.]])
+W_Q = torch.tensor([[0.,   0.],
+                    [0.,   0.],
+                    [3.,  -6.],     # "it" looks for a noun that is NOT a person
+                    [2.,   0.]])    # an adjective looks for any noun
+Q, K = X @ W_Q, X @ W_K
+```
+
+. . .
+
+Note the negative entry: a query can say what it *doesn't* want, as well as what it does. Weight matrices can contain any real numbers.
+
+## The score table
+
+All the query–key dot products at once form an $n \times n$ table, $QK^\top$. Row $i$ shows how well token $i$'s query matches every token's key.
+
+```{python}
+#| echo: true
+#| output-location: fragment
+scores = Q @ K.T
+scores
+```
+
+::: aside
+Rows (queries) and columns (keys): `student`, `AI`, `it`, `interesting`.
+:::
+
+. . .
+
+:::{.incremental}
+* Row 3: `it` matches `AI`, and is *repelled* by `student`: being a noun counts for it, but being a person counts against it.
+* Row 4: `interesting` matches `student` and `AI` equally. On its own, an adjective can't tell what it describes.
+* The table is **not symmetric**: `it` attends to `AI`, but `AI`'s query (row 2) is looking for nothing in particular.
+:::
+
+## Scaling and softmax
+
+As in the capitals example, each row of scores goes through softmax to become weights. First, though, we divide by $\sqrt{d_k}$:
+
+```{python}
+#| echo: true
+#| output-location: fragment
+d_k = K.shape[1]
+weights = (scores / d_k**0.5).softmax(dim=1)
+weights
+```
+
+::: aside
+Rows (queries) and columns (keys): `student`, `AI`, `it`, `interesting`. Each row sums to 1.
+:::
+
+## Why divide by $\sqrt{d_k}$?
+
+:::{.incremental}
+* A dot product of two $d_k$-dimensional vectors is a sum of $d_k$ terms. With random components, its typical size grows like $\sqrt{d_k}$.
+* Real models use $d_k$ of 64 or more. Unscaled, the scores would be large, and softmax would put nearly all its weight on a single token — a hard lookup again, with vanishing gradients for everything else.
+* Dividing by $\sqrt{d_k}$ brings the scores back to a typical size of about 1, whatever $d_k$ is.
+* This is the opposite of the capitals problem: there we scaled *up* to sharpen a flat softmax; here we scale *down* to stop it saturating. Either way, the scale of the scores acts like a temperature.
+:::
+
+## Blending the values
+
+Finally, each token's output is the weighted sum of all the values. For simplicity, take $W_V$ to be the identity, so each value is just the token's embedding:
+
+```{python}
+#| echo: true
+#| output-location: fragment
+V = X                  # i.e. W_V = identity
+weights @ V
+```
+
+::: aside
+Rows: `student`, `AI`, `it`, `interesting`. Columns: noun, person, pronoun, adjective.
+:::
+
+. . .
+
+Row 3 is the new representation of `it`. It started as a pure pronoun, $(0, 0, 1, 0)$. Now it is mostly "noun", with almost no "person": it has borrowed its meaning from `AI`.
+
+. . .
+
+This is a **contextualised embedding**: what `it` means in *this* sentence.
+
+## One step isn't always enough
+
+Recall last lecture's example, and compare:
+
+* The chicken didn't cross the road because it was too *tired*.
+* The chicken didn't cross the road because it was too *wide*.
+
+. . .
+
+:::{.incremental}
+* Here `it` alone can't decide between `chicken` and `road`: both are non-person nouns. The deciding word is the adjective at the end.
+* A single attention step, like our toy, can't resolve this. But if `tired` or `wide` first gathers information about what it describes, a *later* attention step can use that to resolve `it`.
+* This is one reason transformers stack many layers of attention on top of each other.
+:::
+
+## Putting it all together
+
+The whole of self-attention fits in one line:
+
+$$\text{Attention}(Q,K,V) = \text{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right)V$$
+
+:::{.incremental}
+* $QK^\top$: **score** every query against every key.
+* $\div\sqrt{d_k}$, then softmax along each row: **normalise** scores into weights.
+* $\times V$: **blend** the values.
+:::
+
+. . .
+
+These are exactly the three steps of our soft dictionary lookup. The only differences are that the queries, keys and values are all computed from the same sentence, through *learned* projections.
+
+## Summary
+
+:::{.incremental}
+* A hard lookup fails on a near miss. A **soft lookup** scores every key, normalises the scores with softmax, and returns a weighted blend of the values.
+* Soft lookup is tolerant, gives graded answers, and is differentiable. With dense values, though, a blend may not be any of the original values.
+* The representation of queries and keys decides what counts as similar.
+* In self-attention, every token produces a **query**, **key** and **value** through learned matrices $W_Q$, $W_K$, $W_V$, so that what a token looks for, what it can be found by, and what it hands over can all differ.
+* Scores are scaled by $\sqrt{d_k}$ to keep softmax from saturating.
+:::
