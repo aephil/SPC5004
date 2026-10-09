@@ -1,0 +1,257 @@
+---
+title: "Fine-tuning for classification"
+lecture-number: 6
+date: 2026-10-09
+---
+
+## Transfer learning
+
+Training a transformer from scratch needs huge amounts of data and compute. Instead, we usually start from a model someone else already pretrained, and adapt it to our own, smaller, labelled task.
+
+:::{.incremental}
+* **Pretraining**: expensive, general-purpose, done once by someone with a lot of compute (e.g. `Qwen`, BERT).
+* **Fine-tuning**: cheap, task-specific, done by us — we're only nudging weights that already encode a lot about language.
+:::
+
+## Classification heads
+
+A pretrained encoder produces a representation per token (or per sequence), not a class label. We attach a small, task-specific **classification head** on top — one or two linear layers — and train *that* (and optionally the rest of the model) on labelled examples.
+
+```{python}
+#| echo: true
+#| output-location: fragment
+from transformers import AutoModelForSequenceClassification
+
+model = AutoModelForSequenceClassification.from_pretrained(
+    "distilbert-base-uncased", num_labels=2
+)
+```
+
+. . .
+
+Everything below the head was pretrained; the head itself starts from random weights and has everything to learn.
+
+## DistilBERT with a classification head
+
+```{=html}
+<svg viewBox="0 0 1100 392" width="100%" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Sans, sans-serif" role="img" aria-label="DistilBERT with a classification head">
+<defs><marker id="l6-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#222"/></marker><linearGradient id="l6-enc" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="#fde0b9"/><stop offset="0.5" stop-color="#fbefd9"/><stop offset="1" stop-color="#c4e6f4"/></linearGradient></defs>
+<path d="M10 40 V30 H605 V40" fill="none" stroke="#555" stroke-width="1.6"/><text x="307.5" y="20" text-anchor="middle" font-size="14" font-weight="600" fill="#555">pretrained DistilBERT: 66.4M parameters</text>
+<path d="M650 40 V30 H870 V40" fill="none" stroke="#d9480f" stroke-width="1.6"/><text x="760.0" y="20" text-anchor="middle" font-size="14" font-weight="600" fill="#d9480f">new head: 0.59M, random init</text>
+<rect x="10" y="72" width="72" height="26" rx="5" fill="#ffe3c7" stroke="#777" stroke-width="1.2"/>
+<text x="46" y="90" text-anchor="middle" font-size="14" font-family="SFMono-Regular, Menlo, Consolas, monospace">[CLS]</text>
+<rect x="10" y="106" width="72" height="26" rx="5" fill="#fff" stroke="#777" stroke-width="1.2"/>
+<text x="46" y="124" text-anchor="middle" font-size="14" font-family="SFMono-Regular, Menlo, Consolas, monospace">i</text>
+<rect x="10" y="140" width="72" height="26" rx="5" fill="#fff" stroke="#777" stroke-width="1.2"/>
+<text x="46" y="158" text-anchor="middle" font-size="14" font-family="SFMono-Regular, Menlo, Consolas, monospace">loved</text>
+<rect x="10" y="174" width="72" height="26" rx="5" fill="#fff" stroke="#777" stroke-width="1.2"/>
+<text x="46" y="192" text-anchor="middle" font-size="14" font-family="SFMono-Regular, Menlo, Consolas, monospace">this</text>
+<rect x="10" y="208" width="72" height="26" rx="5" fill="#fff" stroke="#777" stroke-width="1.2"/>
+<text x="46" y="226" text-anchor="middle" font-size="14" font-family="SFMono-Regular, Menlo, Consolas, monospace">film</text>
+<rect x="10" y="242" width="72" height="26" rx="5" fill="#fff" stroke="#777" stroke-width="1.2"/>
+<text x="46" y="260" text-anchor="middle" font-size="14" font-family="SFMono-Regular, Menlo, Consolas, monospace">!</text>
+<rect x="10" y="276" width="72" height="26" rx="5" fill="#fff" stroke="#777" stroke-width="1.2"/>
+<text x="46" y="294" text-anchor="middle" font-size="14" font-family="SFMono-Regular, Menlo, Consolas, monospace">[SEP]</text>
+<text x="46" y="340" text-anchor="middle" font-size="16" font-weight="600" fill="#000">Inputs</text>
+<path d="M84 180 L113 180" fill="none" stroke="#222" stroke-width="2.2" stroke-linejoin="round" marker-end="url(#l6-arrow)"/>
+<rect x="115" y="120" width="100" height="120" rx="7" fill="#fadadd" stroke="#222" stroke-width="2.4"/>
+<text x="165" y="175" text-anchor="middle" font-size="16" font-weight="600" fill="#000">Token</text>
+<text x="165" y="195" text-anchor="middle" font-size="16" font-weight="600" fill="#000">Embedding</text>
+<rect x="115" y="280" width="100" height="64" rx="7" fill="#fadadd" stroke="#222" stroke-width="2.4"/>
+<text x="165" y="307" text-anchor="middle" font-size="15" font-weight="600" fill="#000">Position</text>
+<text x="165" y="326" text-anchor="middle" font-size="15" font-weight="600" fill="#000">Embedding</text>
+<path d="M215 180 L231 180" fill="none" stroke="#222" stroke-width="2.2" stroke-linejoin="round" marker-end="url(#l6-arrow)"/>
+<circle cx="245" cy="180" r="13" fill="#fff" stroke="#222" stroke-width="2"/><path d="M232 180 H258 M245 167 V193" stroke="#222" stroke-width="2"/>
+<path d="M215 312 L245 312 L245 195" fill="none" stroke="#222" stroke-width="2.2" stroke-linejoin="round" marker-end="url(#l6-arrow)"/>
+<path d="M258 180 L283 180" fill="none" stroke="#222" stroke-width="2.2" stroke-linejoin="round" marker-end="url(#l6-arrow)"/>
+<rect x="285" y="52" width="232" height="256" rx="16" fill="#f2f2f2" stroke="#222" stroke-width="2.4"/>
+<rect x="303" y="70" width="196" height="220" rx="8" fill="url(#l6-enc)" stroke="#222" stroke-width="2.4"/>
+<text x="401" y="170" text-anchor="middle" font-size="21" font-weight="700" fill="#000">Encoder layer</text>
+<text x="401" y="196" text-anchor="middle" font-size="14" font-weight="500" fill="#444">self-attention</text>
+<text x="401" y="214" text-anchor="middle" font-size="14" font-weight="500" fill="#444">→ feed-forward</text>
+<text x="401" y="345" text-anchor="middle" font-size="28" font-weight="500" fill="#000">6×</text>
+<path d="M517 180 L543 180" fill="none" stroke="#222" stroke-width="2.2" stroke-linejoin="round" marker-end="url(#l6-arrow)"/>
+<text x="575" y="64" text-anchor="middle" font-size="13" font-weight="600" fill="#2b4f8a">encoder output</text>
+<text x="575" y="80" text-anchor="middle" font-size="13" font-weight="600" fill="#2b4f8a">n × d = 7 × 768</text>
+<g opacity="1"><rect x="547" y="112" width="10" height="14" fill="#709cd3" stroke="#fff" stroke-width="0.6"/><rect x="557" y="112" width="10" height="14" fill="#5f90ce" stroke="#fff" stroke-width="0.6"/><rect x="567" y="112" width="10" height="14" fill="#578bcb" stroke="#fff" stroke-width="0.6"/><rect x="577" y="112" width="10" height="14" fill="#427cc5" stroke="#fff" stroke-width="0.6"/><rect x="587" y="112" width="10" height="14" fill="#5f90ce" stroke="#fff" stroke-width="0.6"/><rect x="597" y="112" width="10" height="14" fill="#457ec6" stroke="#fff" stroke-width="0.6"/><rect x="547" y="112" width="60" height="14" fill="none" stroke="#d9480f" stroke-width="2.4"/></g>
+<g opacity="0.35"><rect x="547" y="132" width="10" height="14" fill="#c7d8ee" stroke="#fff" stroke-width="0.6"/><rect x="557" y="132" width="10" height="14" fill="#87acda" stroke="#fff" stroke-width="0.6"/><rect x="567" y="132" width="10" height="14" fill="#427cc5" stroke="#fff" stroke-width="0.6"/><rect x="577" y="132" width="10" height="14" fill="#6d9ad2" stroke="#fff" stroke-width="0.6"/><rect x="587" y="132" width="10" height="14" fill="#4880c7" stroke="#fff" stroke-width="0.6"/><rect x="597" y="132" width="10" height="14" fill="#bbd0ea" stroke="#fff" stroke-width="0.6"/><rect x="547" y="132" width="60" height="14" fill="none" stroke="#555" stroke-width="1"/></g>
+<g opacity="0.35"><rect x="547" y="152" width="10" height="14" fill="#87acda" stroke="#fff" stroke-width="0.6"/><rect x="557" y="152" width="10" height="14" fill="#a7c2e4" stroke="#fff" stroke-width="0.6"/><rect x="567" y="152" width="10" height="14" fill="#7ca4d7" stroke="#fff" stroke-width="0.6"/><rect x="577" y="152" width="10" height="14" fill="#77a1d5" stroke="#fff" stroke-width="0.6"/><rect x="587" y="152" width="10" height="14" fill="#c9daee" stroke="#fff" stroke-width="0.6"/><rect x="597" y="152" width="10" height="14" fill="#abc5e5" stroke="#fff" stroke-width="0.6"/><rect x="547" y="152" width="60" height="14" fill="none" stroke="#555" stroke-width="1"/></g>
+<g opacity="0.35"><rect x="547" y="172" width="10" height="14" fill="#a2bfe2" stroke="#fff" stroke-width="0.6"/><rect x="557" y="172" width="10" height="14" fill="#467fc6" stroke="#fff" stroke-width="0.6"/><rect x="567" y="172" width="10" height="14" fill="#5c8ecd" stroke="#fff" stroke-width="0.6"/><rect x="577" y="172" width="10" height="14" fill="#b4cbe8" stroke="#fff" stroke-width="0.6"/><rect x="587" y="172" width="10" height="14" fill="#578bcb" stroke="#fff" stroke-width="0.6"/><rect x="597" y="172" width="10" height="14" fill="#b7cde9" stroke="#fff" stroke-width="0.6"/><rect x="547" y="172" width="60" height="14" fill="none" stroke="#555" stroke-width="1"/></g>
+<g opacity="0.35"><rect x="547" y="192" width="10" height="14" fill="#719dd3" stroke="#fff" stroke-width="0.6"/><rect x="557" y="192" width="10" height="14" fill="#b9cee9" stroke="#fff" stroke-width="0.6"/><rect x="567" y="192" width="10" height="14" fill="#cbdbef" stroke="#fff" stroke-width="0.6"/><rect x="577" y="192" width="10" height="14" fill="#4c83c8" stroke="#fff" stroke-width="0.6"/><rect x="587" y="192" width="10" height="14" fill="#adc6e6" stroke="#fff" stroke-width="0.6"/><rect x="597" y="192" width="10" height="14" fill="#acc5e5" stroke="#fff" stroke-width="0.6"/><rect x="547" y="192" width="60" height="14" fill="none" stroke="#555" stroke-width="1"/></g>
+<g opacity="0.35"><rect x="547" y="212" width="10" height="14" fill="#3c78c3" stroke="#fff" stroke-width="0.6"/><rect x="557" y="212" width="10" height="14" fill="#4c83c8" stroke="#fff" stroke-width="0.6"/><rect x="567" y="212" width="10" height="14" fill="#a1bee2" stroke="#fff" stroke-width="0.6"/><rect x="577" y="212" width="10" height="14" fill="#3f7ac4" stroke="#fff" stroke-width="0.6"/><rect x="587" y="212" width="10" height="14" fill="#7ca5d7" stroke="#fff" stroke-width="0.6"/><rect x="597" y="212" width="10" height="14" fill="#6897d1" stroke="#fff" stroke-width="0.6"/><rect x="547" y="212" width="60" height="14" fill="none" stroke="#555" stroke-width="1"/></g>
+<g opacity="0.35"><rect x="547" y="232" width="10" height="14" fill="#adc6e6" stroke="#fff" stroke-width="0.6"/><rect x="557" y="232" width="10" height="14" fill="#427cc5" stroke="#fff" stroke-width="0.6"/><rect x="567" y="232" width="10" height="14" fill="#6695d0" stroke="#fff" stroke-width="0.6"/><rect x="577" y="232" width="10" height="14" fill="#3e7ac4" stroke="#fff" stroke-width="0.6"/><rect x="587" y="232" width="10" height="14" fill="#4981c7" stroke="#fff" stroke-width="0.6"/><rect x="597" y="232" width="10" height="14" fill="#9fbde2" stroke="#fff" stroke-width="0.6"/><rect x="547" y="232" width="60" height="14" fill="none" stroke="#555" stroke-width="1"/></g>
+<path d="M609 119 L628 119 L628 180 L650 180" fill="none" stroke="#222" stroke-width="2.2" stroke-linejoin="round" marker-end="url(#l6-arrow)"/>
+<text x="622" y="104" text-anchor="start" font-size="13" font-weight="600" fill="#d9480f">[CLS] only</text>
+<rect x="652" y="130" width="100" height="100" rx="7" fill="#dcdcf0" stroke="#222" stroke-width="2.4"/>
+<text x="702" y="172" text-anchor="middle" font-size="16" font-weight="600" fill="#000">Linear</text>
+<text x="702" y="191" text-anchor="middle" font-size="16" font-weight="600" fill="#000">+ ReLU</text>
+<text x="702" y="214" text-anchor="middle" font-size="13" font-weight="500" fill="#444">768 → 768</text>
+<path d="M752 180 L768 180" fill="none" stroke="#222" stroke-width="2.2" stroke-linejoin="round" marker-end="url(#l6-arrow)"/>
+<rect x="770" y="130" width="100" height="100" rx="7" fill="#e7e1f5" stroke="#222" stroke-width="2.4"/>
+<text x="820" y="180" text-anchor="middle" font-size="16" font-weight="600" fill="#000">Linear</text>
+<text x="820" y="214" text-anchor="middle" font-size="13" font-weight="500" fill="#444">768 → 2</text>
+<path d="M870 180 L920 180" fill="none" stroke="#222" stroke-width="2.2" stroke-linejoin="round" marker-end="url(#l6-arrow)"/>
+<text x="895" y="168" text-anchor="middle" font-size="12" font-weight="500" fill="#444">softmax</text>
+<text x="1010" y="130" text-anchor="middle" font-size="13" font-weight="600" fill="#555">class probabilities</text>
+<text x="1010" y="148" text-anchor="middle" font-size="12" font-weight="500" fill="#555">(after fine-tuning)</text>
+<text x="985" y="180" text-anchor="end" font-size="14" font-weight="500" fill="#000">positive</text>
+<rect x="992" y="169" width="96" height="14" rx="1.5" fill="#d9480f"/>
+<text x="985" y="206" text-anchor="end" font-size="14" font-weight="500" fill="#000">negative</text>
+<rect x="992" y="195" width="10" height="14" rx="1.5" fill="#9aa5b1"/>
+</svg>
+```
+
+The head reads only the output at the first token, `[CLS]`, which serves as a summary of the whole sequence.
+
+## Inside the model {.scrollable}
+
+```{=html}
+<style>
+  .reveal [data-class-output="small-output"] .cell-output pre,
+  .reveal [data-class-output="small-output"] .cell-output pre code { font-size: 15px; line-height: 1.2; max-height: none; }
+</style>
+```
+
+```{python}
+#| echo: true
+#| output-location: fragment
+#| class-output: small-output
+print(model)
+```
+
+## Where the parameters are
+
+```{python}
+#| output: asis
+from collections import Counter
+
+def part(name):
+    if name.startswith("distilbert.embeddings"):
+        return "Embeddings (token + position)"
+    if ".attention." in name:
+        return "Attention ($W_Q, W_K, W_V$, output), 6 layers"
+    if ".ffn." in name:
+        return "Feed-forward, 6 layers"
+    if "layer_norm" in name:
+        return "Layer norms"
+    return "Classification head"
+
+counts = Counter()
+for name, p in model.named_parameters():
+    counts[part(name)] += p.numel()
+total = sum(counts.values())
+print("| Part | Parameters | Share |\n|---|--:|--:|")
+for k in ["Embeddings (token + position)", "Attention ($W_Q, W_K, W_V$, output), 6 layers",
+          "Feed-forward, 6 layers", "Layer norms", "Classification head"]:
+    n = counts[k]
+    share = f"{n / total:.1%}" if n / total >= 0.001 else "<0.1%"
+    print(f"| {k} | {n:,} | {share} |")
+print(f"| **Total** | **{total:,}** | |")
+```
+
+. . .
+
+The new head is under 1% of the model. But by default *every* parameter has `requires_grad=True`, so fine-tuning updates all 67 million of them, not just the head.
+
+## Cross-entropy loss
+
+Classification heads are trained with **cross-entropy loss**, which compares the predicted probability distribution (from `softmax`, as before) against the one-hot true label.
+
+$$\mathcal{L} = -\log p_{\text{true class}}$$
+
+```{python}
+#| fig-width: 8
+#| fig-height: 3
+import matplotlib.pyplot as plt
+from numpy import linspace, log
+
+plt.rcParams.update({"font.family": ["Helvetica Neue", "Helvetica", "DejaVu Sans"],
+                     "font.size": 13, "axes.spines.top": False, "axes.spines.right": False})
+RED, BLUE, GREY = "#b8352a", "#2c6fb7", "#999999"
+
+p = linspace(0.005, 1, 400)
+fig, ax = plt.subplots(figsize=(8, 3))
+ax.plot(p, -log(p), color=RED, lw=2.5)
+ax.set_xlim(0, 1); ax.set_ylim(0, 5.5)
+ax.set_xlabel(r"$p_{\text{true class}}$")
+ax.set_ylabel(r"$\mathcal{L}$", rotation=0, ha="right", va="center")
+fig.tight_layout()
+plt.show()
+```
+
+## Train / validation / test splits
+
+:::{.incremental}
+* **Train**: what the model's weights are actually updated on.
+* **Validation**: used *during* development — to compare models, tune hyperparameters, decide when to stop training. Never used to update weights directly.
+* **Test**: touched only once, at the very end, to report a final, unbiased performance number.
+:::
+
+. . .
+
+Mixing these up — e.g. tuning based on test performance — lets information leak from data you're supposed to be held out on, and makes your reported numbers optimistic.
+
+## Evaluating a classifier
+
+Accuracy alone can be misleading, especially with imbalanced classes. A **confusion matrix** breaks predictions down by what was predicted vs. what was true:
+
+|                | Predicted positive | Predicted negative |
+|----------------|:---:|:---:|
+| **Actual positive** | TP | FN |
+| **Actual negative** | FP | TN |
+
+:::{.incremental}
+* **Precision** $= \frac{TP}{TP+FP}$: of the things we called positive, how many actually were?
+* **Recall** $= \frac{TP}{TP+FN}$: of the things that actually were positive, how many did we catch?
+* **F1** is the *harmonic mean* of precision and recall.
+:::
+
+## Arithmetic vs. harmonic mean
+
+```{python}
+#| echo: true
+#| output-location: fragment
+def arithmetic_mean(a, b):
+    return (a + b) / 2
+
+def harmonic_mean(a, b):
+    return 2 * a * b / (a + b)
+
+for a, b in [(0.5, 0.5), (0.9, 0.1)]:
+    print(f"({a}, {b}):  arithmetic {arithmetic_mean(a, b):.2f},"
+          f"  harmonic {harmonic_mean(a, b):.2f}")
+```
+
+. . .
+
+F1 is the harmonic mean of precision and recall. A classifier that is excellent on one and poor on the other gets no credit for the average: the smaller number dominates.
+
+## Padding and attention masks
+
+A batch needs every sequence to be the same length, but real sequences vary. We pad the short ones out with a `[PAD]` token.
+
+```{python}
+#| echo: true
+#| output-location: fragment
+from transformers import AutoTokenizer
+
+tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
+tokenizer(["a short one", "a rather longer sentence than that"], padding=True)
+```
+
+. . .
+
+Notice the `attention_mask`: `1` for real tokens, `0` for padding. This tells the model to ignore the padding entirely, so it doesn't contaminate the attention computation or the loss.
+
+## Why small classifiers still matter
+
+Even with frontier LLMs, a fine-tuned model of this size is often the right tool: fast, cheap enough to run over billions of items, runnable locally on private data, and it outputs a score rather than free text.
+
+:::{.incremental}
+* **Data filtering**: scoring web pages for quality or toxicity before LLM pretraining.
+* **Guardrails**: flagging jailbreaks, prompt injection or harmful content.
+* **PII detection**: finding names, addresses etc. to redact (token classification).
+* **Retrieval**: embeddings for search, and rerankers, in RAG systems.
+* **Routing**: deciding which tool or model a request should go to.
+* **Reward models**: the same recipe (pretrained LM + scalar head), scaled up, to score chatbot responses.
+:::
