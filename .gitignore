@@ -1,5 +1,6 @@
 /.quarto/
 /_site/
+/_publish/
 *.quarto_ipynb*
 .DS_Store
 

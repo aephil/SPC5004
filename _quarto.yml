@@ -8,7 +8,13 @@ project:
     - lec03.qmd
     - lec04.qmd
   resources:
-    - index.html
+    - /index.html
+    - /transformer.html
+
+# Re-execute code only when a deck's .qmd changes; results are kept in
+# _freeze/ and shared by both profiles.
+execute:
+  freeze: auto
 
 # Access codes live in the git-ignored _quarto-class.yml (the default
 # profile) and are injected by this filter; publish.sh renders with the
