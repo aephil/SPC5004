@@ -1,0 +1,135 @@
+---
+title: "Evaluating language models"
+lecture-number: 10
+date: 2026-10-23
+---
+
+## How good is a language model?
+
+We've been training against cross-entropy loss all along. **Perplexity** turns that same quantity into something more interpretable:
+
+$$\text{Perplexity} = \exp(\text{mean cross-entropy loss})$$
+
+:::{.incremental}
+* Loosely: the model's average "branching factor" — how many roughly-equally-likely next tokens it's choosing among.
+* Lower is better. A perplexity of 1 would mean the model is never in doubt about the next token.
+* It's computed on held-out text, exactly like a validation loss.
+:::
+
+## A worked example
+
+A model reads "The cat sat on the mat" and, at each step, gives a probability to the token that actually comes next:
+
+:::: {.columns}
+::: {.column width="45%"}
+| next token | $p$ | $-\ln p$ |
+|---|:---:|:---:|
+| cat | 0.20 | 1.61 |
+| sat | 0.25 | 1.39 |
+| on | 0.80 | 0.22 |
+| the | 0.90 | 0.11 |
+| mat | 0.10 | 2.30 |
+| **mean** | | **1.13** |
+:::
+::: {.column width="55%" .incremental}
+* Mean cross-entropy loss: 1.13 nats.
+* Perplexity: $e^{1.13} \approx 3.1$.
+* Equivalently, $\text{PPL} = \left(\prod_i p_i\right)^{-1/N}$: one over the *geometric mean* of the probabilities.
+* So the model did about as well as if it were choosing among 3 equally likely tokens at every step.
+:::
+::::
+
+## Reading the scale
+
+:::{.incremental}
+* **1**: the model is certain, and right, every time.
+* **$V$**, the vocabulary size (49,152 for SmolLM2): no better than guessing uniformly from the whole vocabulary.
+* **Above $V$**: confidently wrong — worse than knowing nothing at all.
+* Because perplexity is an exponential, *differences in loss* become *ratios of perplexity*: a drop of 0.1 in loss is about a 10% drop in perplexity, wherever you start.
+:::
+
+## From one passage to a corpus
+
+A single passage of a hundred or so tokens gives a noisy estimate. Real evaluations pool over a whole held-out corpus:
+
+$$\text{PPL}_\text{corpus} = \exp\left(\frac{\text{total negative log-likelihood}}{\text{total number of tokens predicted}}\right)$$
+
+. . .
+
+**Don't average perplexities.** Two passages, one of 10 tokens with perplexity 100 and one of 1,000 tokens with perplexity 10:
+
+:::{.incremental}
+* Mean of the perplexities: $(100 + 10)/2 = 55$.
+* Pooled: $\exp\left(\frac{10 \ln 100 + 1000 \ln 10}{1010}\right) \approx 10.2$ — dominated, rightly, by the passage with almost all the tokens.
+:::
+
+## Comparing perplexities fairly
+
+A perplexity on its own means little; it's useful for comparing models. To be fair, compare on:
+
+:::{.incremental}
+* **The same text.** Perplexity depends as much on the text as on the model: Shakespeare is harder to predict than a weather report.
+* **The same tokeniser.** Perplexity is per *token*: a tokeniser that cuts text into more, smaller pieces makes each prediction easier. (Normalising per character or per byte avoids this.)
+* **The same context length.** Text is evaluated in blocks; tokens near the start of a block have little context and are harder to predict.
+* **Uncontaminated text.** If the test text was in the pretraining data — Wikipedia, Shakespeare — a low perplexity partly measures memory.
+:::
+
+## Perplexity and model size
+
+:::{.incremental}
+* Bigger models, trained on more data, predict text better.
+* **Scaling laws** (Kaplan et al., 2020; Hoffmann et al., 2022): loss falls smoothly and predictably with parameters and training tokens, roughly as a power law.
+* But with diminishing returns: each tenfold increase in size buys a smaller absolute improvement than the last.
+* The exception: if the test text was in the training data, a big enough model can memorise it, and perplexity then falls *faster* than scaling laws predict.
+* In the lab: SmolLM2 at 135M, 360M and 1.7B parameters — same tokeniser, similar training data — on Shakespeare and on WikiText-2.
+:::
+
+## Perplexity as a measure of damage
+
+Perplexity can also measure what a change to a model *costs*. Quantising SmolLM2-1.7B, as in the lecture on parameter-efficient fine-tuning:
+
+| precision | measured memory footprint |
+|---|:---:|
+| 16-bit | 3.4 GB |
+| 8-bit | 1.8 GB |
+| 4-bit NF4 | 1.0 GB |
+
+. . .
+
+(More than the bare 4- or 8-bit weights: some parts, such as the embeddings, stay in 16 bits.) Rounding the weights changes the predictions slightly, so perplexity rises. In the lab you'll measure by how much, and ask: is a 4-bit 1.7B model better than a 16-bit 360M model (about 0.7 GB)?
+
+## Intrinsic vs. extrinsic evaluation
+
+:::{.incremental}
+* **Intrinsic**: perplexity measures how well the model predicts held-out *text*, without reference to any particular downstream use. No task-specific data or labels needed.
+* **Extrinsic**: the accuracy, precision/recall and F1 metrics from the classification lecture measure performance on a specific *task* — they need labelled task data, but tell you something more directly useful for that task.
+:::
+
+A model can have excellent perplexity yet still be middling at some specific downstream task, and vice versa — the two families of metric answer different questions.
+
+## Benchmarks without generating anything
+
+Many benchmarks are multiple choice, scored with the same ingredient as perplexity: the probability of a continuation.
+
+> Question: Which of these is a renewable source of energy?<br>
+> Answer: **coal** / **wind** / **oil** / **natural gas**
+
+:::{.incremental}
+* Compute $\log p(\text{wind} \mid \text{question})$, and the same for every other choice.
+* The model "answers" with whichever choice is most probable; accuracy is the fraction it gets right.
+* No generated text to parse — but longer answers have lower probability, so scores are often normalised by length.
+* This is how tools like `lm-evaluation-harness` score benchmarks such as ARC and HellaSwag.
+:::
+
+## Other evaluation metrics
+
+Beyond perplexity and classification metrics, generation is often scored with:
+
+:::{.incremental}
+* **BLEU** / **ROUGE**: compare generated text against one or more reference texts by measuring word/phrase overlap — common for translation and summarisation.
+* Standard **benchmark suites** (collections of tasks with fixed test sets and leaderboards) let different models be compared on a level footing.
+* **LLM-as-a-judge**: another, stronger model scores or compares the outputs. Cheap and flexible, but with biases of its own.
+* **Human preference**: people vote between pairs of anonymous replies, as in Chatbot Arena.
+:::
+
+The lab's projects include building a small multiple-choice benchmark, scored as on the previous slide.
