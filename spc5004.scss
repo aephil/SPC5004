@@ -57,6 +57,12 @@ mark {
   background-color: $mark-color;
 }
 
+// A gentler alternative to reveal's `.smaller`, for slides that only
+// just overflow.
+.reveal .slides .slightly-smaller {
+  font-size: 90%;
+}
+
 // Title slide layout: lecture number sits above the title, metadata
 // (author/date) is pinned near the bottom. title-main is flex:1 so it
 // absorbs the leftover height and centers its own contents, leaving

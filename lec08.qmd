@@ -4,6 +4,8 @@ lecture-number: 8
 date: 2026-10-16
 ---
 
+# Low-rank adaptation
+
 ## The cost of full fine-tuning
 
 Full fine-tuning updates *every* weight in the model — which means storing a full copy of the weights (and the optimiser's own state for each one) for every task you fine-tune for.
@@ -12,6 +14,8 @@ Full fine-tuning updates *every* weight in the model — which means storing a f
 * Fine for a 100M-parameter model. Increasingly painful for a 7B, 70B, ... parameter model.
 * If you want ten fine-tuned variants of a large model, full fine-tuning means ten full-sized copies.
 :::
+
+. . .
 
 We'd like most of the pretrained weights to stay exactly as they are, and only train a small add-on.
 
@@ -30,7 +34,7 @@ Full fine-tuning with the Adam optimiser, in 32‑bit floating point, needs for 
 :::
 ::: {.column width="55%" .incremental}
 * SmolLM2-135M: $135\text{M} \times 16 \text{ bytes} \approx 2.2\text{ GB}$. Fine.
-* SmolLM2-1.7B: $1.7\text{B} \times 16 \text{ bytes} \approx 27\text{ GB}$, against the 8 GB on each of our GPUs.
+* SmolLM2-1.7B: $1.7\text{B} \times 16 \text{ bytes} \approx 27\text{ GB}$, compared with 8 GB on each of our GPUs.
 * On top of this come the **activations**: values saved during the forward pass for the backward pass, growing with batch size and sequence length.
 :::
 ::::
@@ -922,7 +926,7 @@ config = LoraConfig(
 
 `r` is the rank from the formula above; `lora_alpha` is a scaling factor applied to $BA$ before it's added back to $W$ — together they control how much capacity, and how much influence, the adapter has.
 
-## What LoRA saves, and what it doesn't
+## What difference does LoRA make?
 
 :::{.incremental}
 * Frozen weights need no gradient and no optimiser state: of the 16 bytes per parameter, only the weight itself remains.
@@ -933,7 +937,9 @@ config = LoraConfig(
 
 . . .
 
-So for a small model, LoRA saves much less GPU memory than "0.34%" suggests. You will measure this in the lab.
+For a small model, LoRA saves much less GPU memory than "0.34%" suggests. You will measure this in the lab.
+
+# Quantisation
 
 ## Quantisation
 
@@ -942,7 +948,7 @@ A separate way to cut memory use: store weights with *fewer bits* than the usual
 :::{.incremental}
 * **int8** or even **4-bit** representations pack the same weight into much less memory.
 * Since low-bit integers can't represent a full floating-point range directly, a **scale factor** maps the original float range onto the small integer range (and back again when the weight is used).
-* This isn't free: too aggressive a quantisation loses precision, and accuracy can suffer — a memory/accuracy trade-off, tuneable via how many bits you use and how the scale factor is chosen.
+* Too aggressive a quantisation loses precision, and accuracy can suffer. The balance between memory and accuracy can be tuned by the number of bits used and the scale factor.
 :::
 
 ## From float to int4 and back
@@ -1143,14 +1149,14 @@ With $\alpha = 7 / \max|x| = 7/5.4 \approx 1.30$: $\;1.2 \xrightarrow{\times\alp
 
 Every value moves by at most half a step, $1/(2\alpha) \approx 0.39$; $0.3$ is rounded to $0$ and lost entirely.
 
-## Outliers, and how to tame them
+## Outliers may be a problem
 
 In the example, the single value $5.4$ sets the step size for all nine numbers, and small values like $0.3$ are lost.
 
 :::{.incremental}
 * **Block-wise scales:** give each small block of weights (say 64) its own scale factor, so an outlier only coarsens its own block. The price is one extra number per block.
 * **NF4** ("normal float 4"): rather than 16 evenly spaced levels, place them more densely near zero, where most of a trained model's weights lie.
-* Weights are *stored* in 4 bits but converted back to 16 bits on the fly for each matrix multiplication: quantisation saves memory, not arithmetic.
+* Weights are *stored* in 4 bits but converted back to 16 bits on the fly for each matrix multiplication: quantisation saves memory, not computation.
 :::
 
 ## QLoRA: putting it together
@@ -1170,7 +1176,7 @@ Weights alone, SmolLM2-1.7B:
 :::
 ::: {.column width="60%" .incremental}
 * The quantised base weights never change; only the adapters, kept in 16 or 32 bits, are trained.
-* **Gradient checkpointing** trades compute for memory: keep only some activations from the forward pass, and recompute the rest during the backward pass.
-* In the lab: fine-tune the 1.7B model, which would need about 27 GB to fine-tune in full, on an 8 GB GPU.
+* **Gradient checkpointing** is another trade-off between compute and memory: keep only some activations from the forward pass, and recompute the rest during the backward pass.
+* In the lab, we will fine-tune the 1.7B model, which would need about 27 GB to fine-tune in full, on an 8 GB GPU.
 :::
 ::::

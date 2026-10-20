@@ -18,24 +18,24 @@ $$\text{Perplexity} = \exp(\text{mean cross-entropy loss})$$
 
 ## A worked example
 
-A model reads "The cat sat on the mat" and, at each step, gives a probability to the token that actually comes next:
+SmolLM2-135M reads "The cat sat on the mat" and, at each step, gives a probability to the token that actually comes next:
 
-:::: {.columns}
-::: {.column width="45%"}
-| next token | $p$ | $-\ln p$ |
-|---|:---:|:---:|
-| cat | 0.20 | 1.61 |
-| sat | 0.25 | 1.39 |
-| on | 0.80 | 0.22 |
-| the | 0.90 | 0.11 |
-| mat | 0.10 | 2.30 |
-| **mean** | | **1.13** |
+::::{.columns}
+::: {.column width="52%" style="font-size: 0.72em;"}
+| next token | $p$ | $-\ln p$ | top guess |
+|---|:---:|:---:|:---:|
+| cat | 0.00014 | 8.84 | first (0.02) |
+| sat | 0.0031 | 5.76 | is (0.09) |
+| on | 0.23 | 1.46 | **on** |
+| the | 0.60 | 0.52 | **the** |
+| mat | 0.0062 | 5.08 | bed (0.07) |
+| **mean** | | **4.33** | |
 :::
-::: {.column width="55%" .incremental}
-* Mean cross-entropy loss: 1.13 nats.
-* Perplexity: $e^{1.13} \approx 3.1$.
+::: {.column width="48%" .incremental style="font-size: 0.8em;"}
+* Mean cross-entropy loss: 4.33 nats; perplexity $e^{4.33} \approx 76$.
 * Equivalently, $\text{PPL} = \left(\prod_i p_i\right)^{-1/N}$: one over the *geometric mean* of the probabilities.
-* So the model did about as well as if it were choosing among 3 equally likely tokens at every step.
+* As if choosing among 76 equally likely tokens at every step.
+* A few surprises dominate: with no context, "cat" after "The" is a 1-in-7,000 shot.
 :::
 ::::
 

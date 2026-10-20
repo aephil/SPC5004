@@ -1,8 +1,46 @@
 ---
-title: "Training a language model"
+title: "Fine-tuning for text generation"
 lecture-number: 7
 date: 2026-10-13
 ---
+
+## Notes on the week 6 feedback deadline
+:::{.incremental}
+* This is an opportunity to **receive feedback and improve your learning** (and eventual portfolio score).
+* Deadline is Friday 30 October at 11:59 p.m. (end of week 6).
+* Hand-in via Git and QM+: commit your work to your git repo as usual and submit the commit hash to be marked on QM+.
+* Put each project in a separate folder and fill out the cover sheet accordingly. Other work will not be marked.
+* You may submit up to three stars’ worth of work, divided however you like.
+* Full marking scheme is on QM+.
+    * Note that marks are awarded for professional practice including consistent Git use.
+:::
+
+## Notes on the week 6 feedback deadline
+:::{.incremental}
+* This is **optional**:
+    * If you hand nothing in, this won't affect your final portfolio grade.
+    * If you hand something in, you will be able to revise it according to my feedback, and resubmit at the end of the year for a better grade…
+    * …or decide you are happy with the provisional grade and feedback, and leave it unchanged in your final portfolio…
+    * …or decide to drop it from your portfolio altogether!
+* There is another feedback point at the end of week 12.
+:::
+
+## Notes on the portfolio 
+:::{.incremental .slightly-smaller}
+* The task is to prepare a **portfolio**, *not* an exam!
+    * **Don’t** copy the green instruction text across.
+    * **Do** present in your own words what the problem is and your approach to solving it.
+    * **Don’t** assume the reader knows anything about the problem or this module.
+    * **Do** use a combination of Python code and English text (in any suitable file format) to explain your work.
+    * **Don’t** just answer the specific questions I ask in the problem text, and leave it at that. 
+    * **Do** know what skills you are trying to demonstrate, and think about how best to evidence them.
+::: 
+
+:::{.aside}
+Remember you are allowed to propose your own problems as well as considering the ones in the labs.
+:::
+
+# Fine-tuning models for text generation
 
 ## The model: SmolLM2-135M
 
@@ -284,7 +322,7 @@ $$w \leftarrow w - \eta\,\frac{\partial \mathcal{L}}{\partial w} \qquad \text{(h
 </svg>
 ```
 
-SmolLM2-135M does this for 134.5 million parameters at once, on a loss surface we can never draw, so we have to find a good $\eta$ by experiment.
+SmolLM2-135M does this for 134.5 million parameters at once on a multidimensional loss surface. We have to find a good $\eta$ by experiment.
 
 ## Why warm up?
 
@@ -316,14 +354,45 @@ plt.show()
 
 Early in training, weights are far from settled and gradients can be noisy or large; a low starting learning rate avoids a destructive first few steps before ramping up.
 
-## Training parameters
+## Weight decay
 
-Fine-tuning for generation uses the same `Trainer` machinery as classification, but it's worth understanding the knobs on offer.
+Weight decay adds one term to the update, shrinking every weight slightly towards zero on each step:
+$$w \leftarrow w - \eta\,\frac{\partial \mathcal{L}}{\partial w} - \eta\lambda w$$
+
+```{python}
+#| fig-width: 8
+#| fig-height: 2.6
+w = np.linspace(-1, 7, 200)
+lam = 1.0  # exaggerated so the shift is visible
+loss = (w - 4)**2 + 1
+penalised = loss + lam / 2 * w**2
+fig, ax = plt.subplots(figsize=(8, 2.6))
+ax.plot(w, loss, color=BLUE, lw=2.5, ls="--", label="loss alone")
+ax.plot(w, penalised, color=RED, lw=2.5, label="with weight decay")
+for curve, colour in [(loss, BLUE), (penalised, RED)]:
+    i = curve.argmin()
+    ax.plot(w[i], curve[i], "o", color=colour, ms=8)
+ax.annotate("", xy=(8/3, 3), xytext=(4, 3),
+            arrowprops=dict(arrowstyle="->", color=RED, lw=2))
+ax.axvline(0, color=GREY, lw=1)
+ax.set_xlabel("parameter value w"); ax.set_ylabel("loss")
+ax.set_ylim(0, 25); ax.legend(frameon=False)
+fig.tight_layout()
+plt.show()
+```
+
+:::{.slightly-smaller}
+For plain gradient descent this is the same as adding a penalty $\tfrac{\lambda}{2}w^2$ to the loss, which moves the minimum towards zero (here $\lambda$ is exaggerated; typically $\lambda \approx 0.01$). Large weights often mean fitting quirks of the training data, so this discourages overfitting.
+:::
+
+## Training parameters summary
+
+Fine-tuning for generation uses the same `Trainer` machinery as classification. We've discussed several hyperparameters we can tune:
 
 :::{.incremental}
 * **Learning rate** $\eta$: how big a step to take on each update, as above. Too high and training diverges; too low and it barely moves.
-* **Weight decay**: a small penalty on large weights, discouraging overfitting.
 * **Learning-rate schedule** (e.g. *cosine*): the learning rate isn't held constant — it's usually shrunk smoothly over training, often after a **warmup** period of gradually *increasing* it from zero at the very start.
+* **Weight decay**: a small penalty on large weights, discouraging overfitting.
 :::
 
 ## Batch size and gradient accumulation

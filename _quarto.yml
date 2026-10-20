@@ -9,6 +9,9 @@ project:
     - lec04.qmd
     - lec05.qmd 
     - lec06.qmd 
+    - lec07.qmd 
+    - lec08.qmd 
+    - lec09.qmd
   resources:
     - /index.html
     - /transformer.html
