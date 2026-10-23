@@ -6,7 +6,7 @@ date: 2026-10-23
 
 ## How good is a language model?
 
-We've been training against cross-entropy loss all along. **Perplexity** turns that same quantity into something more interpretable:
+So far we've been training against cross-entropy. **Perplexity** is a more interpretable way of considering the same number:
 
 $$\text{Perplexity} = \exp(\text{mean cross-entropy loss})$$
 
@@ -39,7 +39,7 @@ SmolLM2-135M reads "The cat sat on the mat" and, at each step, gives a probabili
 :::
 ::::
 
-## Reading the scale
+## How to read the scale
 
 :::{.incremental}
 * **1**: the model is certain, and right, every time.
@@ -48,7 +48,7 @@ SmolLM2-135M reads "The cat sat on the mat" and, at each step, gives a probabili
 * Because perplexity is an exponential, *differences in loss* become *ratios of perplexity*: a drop of 0.1 in loss is about a 10% drop in perplexity, wherever you start.
 :::
 
-## From one passage to a corpus
+## A meaningful evaluation needs a corpus
 
 A single passage of a hundred or so tokens gives a noisy estimate. Real evaluations pool over a whole held-out corpus:
 
@@ -60,7 +60,7 @@ $$\text{PPL}_\text{corpus} = \exp\left(\frac{\text{total negative log-likelihood
 
 :::{.incremental}
 * Mean of the perplexities: $(100 + 10)/2 = 55$.
-* Pooled: $\exp\left(\frac{10 \ln 100 + 1000 \ln 10}{1010}\right) \approx 10.2$ — dominated, rightly, by the passage with almost all the tokens.
+* Pooled: $\exp\left(\frac{10 \ln 100 + 1000 \ln 10}{1010}\right) \approx 10.2$ — dominated, correctly, by the passage with almost all the tokens.
 :::
 
 ## Comparing perplexities fairly
@@ -132,4 +132,4 @@ Beyond perplexity and classification metrics, generation is often scored with:
 * **Human preference**: people vote between pairs of anonymous replies, as in Chatbot Arena.
 :::
 
-The lab's projects include building a small multiple-choice benchmark, scored as on the previous slide.
+This lab's projects include building a small multiple-choice benchmark, scored as on the previous slide.
