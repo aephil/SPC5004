@@ -1,0 +1,1018 @@
+<!doctype html>
+<html lang="en-GB">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fine-Tuning, Choice by Choice</title>
+  <meta name="description"
+    content="A scroll-driven summary of lectures 6–10 of SPC5004: the choices you make when fine-tuning a pretrained transformer, followed for a classifier and a chatbot.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.21/katex.min.css">
+  <style>
+    :root {
+      --bg: #fff;
+      --ink: #000;
+      --muted: oklch(50% 5% 0);
+      --link: #00008b;
+      --sans: "IBM Plex Sans", sans-serif;
+      --accent: #d9480f;
+      --rule: #ddd;
+      --mono: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --ta: #2c6fb7;
+      --tb: #b0457a;
+      --strip-h: clamp(92px, 12vh, 120px);
+    }
+
+    * { box-sizing: border-box }
+    html { scroll-behavior: auto }
+    body { margin: 0; background: var(--bg); color: var(--ink); font: 18px/1.55 var(--sans) }
+    a { color: var(--link) }
+    h1, h2, h3 { font-weight: 600; line-height: 1.2 }
+
+    .wrap { display: grid; grid-template-columns: minmax(320px, 32%) minmax(0, 1fr) }
+    #text { padding: 0 2rem 45vh 2.6rem; min-width: 0 }
+    #fig { position: sticky; top: 0; align-self: start; height: 100vh; border-left: 1px solid var(--rule); background: #fff }
+    #svg { width: 100%; height: calc(100% - var(--strip-h)); display: block }
+
+    header.intro { min-height: 60vh; padding-top: 12vh }
+    header.intro h1 { font-size: 2.3rem; line-height: 1.15; margin: 0 0 .6rem }
+    header.intro p { color: var(--muted); margin: .4rem 0 }
+    kbd { font: 600 .8em var(--mono); border: 1px solid #ccc; border-bottom-width: 2px; border-radius: 4px; padding: 0 .35em; background: #fff }
+    .ta, .tb { font-weight: 600 }
+    .ta { color: var(--ta) }
+    .tb { color: var(--tb) }
+
+    .step { min-height: 72vh; padding-top: 4vh; opacity: .28; transition: opacity .35s }
+    .step.active { opacity: 1 }
+    .step h2 { font-size: 1.45rem; margin: 0 0 .5rem; line-height: 1.25 }
+    .step h2 .n { display: inline-block; min-width: 1.6em; color: var(--accent); font-variant-numeric: tabular-nums }
+    .step ul, .step ol { padding-left: 1.15rem; margin: .3rem 0 }
+    .step li { margin: .35rem 0 }
+    .step .src { font-size: .82rem; color: var(--muted) }
+    code { font-family: var(--mono); font-size: .88em; background: #f2f2f2; padding: 0 .25em; border-radius: 3px }
+    .step code { overflow-wrap: anywhere }
+
+    /* finale configuration list */
+    #cfgs { margin: 1rem 0 50vh; padding: 0; list-style: none }
+    #cfgs li.cfg { border: 1px solid var(--rule); border-left: 4px solid transparent; border-radius: 6px; padding: .5rem .8rem; margin: 0 0 .8rem; cursor: pointer; transition: background .2s }
+    #cfgs li.cfg b { display: block }
+    #cfgs li.cfg .k { font-size: .85rem; color: var(--muted) }
+    #cfgs li.cfg:hover { background: #fff4ec }
+    #cfgs li.cfg.on { background: #ffe8d9; border-left-color: var(--accent) }
+    #cfgs li.beyond b::after { content: " beyond the labs"; font-size: .72rem; font-weight: 600; color: #fff; background: #777; border-radius: 4px; padding: 0 .4em; margin-left: .4em; vertical-align: .1em }
+
+    #badge { position: absolute; left: 16px; top: 14px; font: 600 14px/1.3 var(--sans); color: var(--muted); background: rgba(255, 255, 255, .88); padding: .3rem .6rem; border-radius: 6px; pointer-events: none }
+    #badge b { color: var(--accent) }
+
+    /* ---------- the choices strip ---------- */
+    #strip { position: absolute; left: 0; right: 0; bottom: 0; height: var(--strip-h); border-top: 1px solid var(--rule); background: #fafaf8;
+      padding: 8px 10px; display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)) minmax(0, 1.5fr) minmax(0, .85fr); gap: 4px;
+      font-size: clamp(11px, 1.45vh, 14px); line-height: 1.25 }
+    .box { position: relative; min-width: 0; border: 1.5px solid #e2e2e2; border-radius: 7px; padding: 4px 5px; background: #fff; display: flex; flex-direction: column; justify-content: center; gap: 2px; transition: border-color .4s, background .4s, opacity .4s }
+    .box .h { font-weight: 600; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+    .box.todo { opacity: .45 }
+    .box.todo .h { color: #999 }
+    .box.cur { border-color: var(--accent); background: #fff4ec }
+    .box.cur .h { color: var(--accent) }
+    .box.gauge, .box.disk { background: transparent; border-color: transparent }
+    .v { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 1.25em; color: #222 }
+    .v.a { color: var(--ta) }
+    .v.b { color: var(--tb) }
+    .v.off { color: #aaa }
+    .v.flash { animation: flash 1s ease-out }
+    @keyframes flash { 0% { background: rgba(217, 72, 15, .3) } 100% { background: transparent } }
+    .mb { display: grid; grid-template-columns: .55em minmax(0, 1fr) 4.6em; align-items: center; gap: 6px; min-height: 1.25em }
+    .mb::before { content: ""; width: .55em; height: .55em; border-radius: 50% }
+    .mb.a::before { background: var(--ta) }
+    .mb.b::before { background: var(--tb) }
+    .mb .tr { position: relative; height: .75em; background: #ececec; border-radius: 3px }
+    .mb .fill, .mb .ghost { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; transition: width .6s }
+    .mb .fill { background: #555 }
+    .mb .ghost { background: repeating-linear-gradient(45deg, #f2c4ad 0 4px, #fbe6db 4px 8px) }
+    .mb.over .tr::after { content: "▶▶"; position: absolute; right: -4px; top: 50%; transform: translateY(-55%); font-size: .75em; color: #b8352a }
+    .mb .gpu { position: absolute; left: 80%; top: -3px; bottom: -3px; border-left: 2px dashed #b8352a }
+    .mb .mv { white-space: nowrap; font-weight: 600; text-align: right }
+    .gauge .h span { font-weight: 400; color: #b8352a; margin-left: .4em }
+
+    #svg text { font-family: var(--sans) }
+    #svg .mono { font-family: var(--mono) }
+    #svg .fo { display: flex; align-items: center; white-space: nowrap; line-height: 1.15; font-family: var(--sans) }
+    #svg .fo .katex { font-size: 1.06em }
+    .step .katex { font-size: 1.04em }
+    #svg * { vector-effect: non-scaling-stroke }
+    .fade, .col { transition: opacity .6s ease }
+    .static .fade, .static .col, .static .step, .static .box, .static .fill, .static .ghost { transition: none !important; animation: none !important }
+    .gradflow { stroke-dasharray: 12 9; animation: flow 1s linear infinite }
+    @keyframes flow { to { stroke-dashoffset: -21 } }
+    .pulse { animation: pulse 1.6s ease-in-out infinite }
+    @keyframes pulse { 50% { stroke-opacity: .35 } }
+    .static .gradflow, .static .pulse { animation: none }
+
+    @media (max-width:820px) {
+      .wrap { grid-template-columns: minmax(0, 1fr) }
+      #fig { order: -1; height: 62vh; z-index: 3; border-left: 0; border-bottom: 1px solid var(--rule) }
+      :root { --strip-h: 64px }
+      #strip { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); font-size: 11px; padding: 5px 8px }
+      #strip .box:not(.cur):not(.gauge), #strip .disk { display: none }
+      #text { padding: 0 16px 40vh }
+      header.intro { min-height: 30vh; padding-top: 4vh }
+      header.intro h1 { font-size: 1.7rem }
+      .step { min-height: 60vh }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <div id="text">
+      <header class="intro">
+        <h1>Fine-tuning language models, choice by choice</h1>
+        <p>In lectures 1–5 we took the transformer apart. In lectures 6–10 we took pretrained transformers and
+          <em>adapted</em> them to our own tasks. This page follows two projects through the choices that involves:
+          a <span class="ta">classifier</span> that sorts tweets into topics (lab 6), and a <span class="tb">chatbot</span>
+          made from a base language model (lab 9).</p>
+        <p>Each choice trades off accuracy, memory, storage and time. The strip below the diagram records the choices made
+          so far for each project.</p>
+        <p>You can move through the animation by scrolling, or jump to the next step using <kbd>↓</kbd>/<kbd>↑</kbd>,
+          <kbd>PgDn</kbd>/<kbd>PgUp</kbd> or <kbd>Space</kbd>.</p>
+        <p class="src">Parameter counts, tokens and probabilities are real outputs of the models named. Memory,
+          perplexity and training figures come from the saved lab answer notebooks; loss curves and the confusion
+          matrix are schematic.</p>
+      </header>
+
+      <section class="step" data-step="1">
+        <h2><span class="n"></span>Start from a pretrained model</h2>
+        <ul>
+          <li>Pretraining on a huge, general corpus is expensive, and is done once by someone with a lot of compute. The weights then encode a lot about language.</li>
+          <li><b>Fine-tuning</b> adapts that model to our own task, with far less data and compute. This is <b>transfer learning</b>.</li>
+          <li>Every fine-tuning run has the same shape: data goes in at the bottom, through the model and a head, to a loss at the top. Training sends the gradient of the loss back down (dashed orange arrow).</li>
+          <li>We follow two projects: a <span class="ta">classifier</span> and a <span class="tb">chatbot</span>.</li>
+        </ul>
+      </section>
+
+      <section class="step" data-step="2">
+        <h2><span class="n"></span>Choose an architecture and a base model</h2>
+        <ul>
+          <li>To label or understand text, use an <b>encoder</b>, which reads the whole input at once. To generate text, use a <b>decoder</b>. Encoder-decoders map one sequence to another, as in translation.</li>
+          <li>Bigger models are usually better, but cost more memory and time to train and to run. Small models are fast and cheap, and can run privately on your own hardware.</li>
+          <li><span class="ta">Classifier</span>: DistilBERT, with 66M parameters. <span class="tb">Chatbot</span>: SmolLM2-1.7B.</li>
+          <li>We start from the <em>base</em> SmolLM2, not the <code>-Instruct</code> version, to see what fine-tuning adds.</li>
+          <li class="src">The memory gauge shows the weights alone: 0.27 GB in 32 bits for DistilBERT, 3.42 GB in 16 bits for SmolLM2-1.7B.</li>
+        </ul>
+      </section>
+
+      <section class="step" data-step="3">
+        <h2><span class="n"></span>Add components</h2>
+        <ul>
+          <li>An encoder outputs a vector per token, not a label. The <span class="ta">classifier</span> gets a new <b>head</b>: two linear layers that read the <code>[CLS]</code> vector, then a softmax over the 6 topics (<code>num_labels=6</code>).</li>
+          <li>The head starts from random weights (dashed outline), so it has everything to learn.</li>
+          <li>Other tasks need other heads: a label for each token (to find names to redact, say), or a single score (step 12).</li>
+          <li>The <span class="tb">chatbot</span> needs nothing new: its language-model head already predicts the next token.</li>
+        </ul>
+      </section>
+
+      <section class="step" data-step="4">
+        <h2><span class="n"></span>Choose what to train</h2>
+        <ul>
+          <li><b>Full fine-tuning</b> updates every weight, including any new head (orange outline). With the Adam optimiser in 32 bits, each trained parameter costs 16 bytes: the weight, its gradient and two running averages. The activations saved for the backward pass come on top.</li>
+          <li>For the <span class="ta">classifier</span> that is about 1.1 GB, so we train it in full. For the <span class="tb">chatbot</span> it would be about 27 GB (hatched bar): far too much for an 8 GB GPU.</li>
+          <li><b>LoRA</b> freezes the pretrained weights $W$ (grey) and learns a small low-rank update, $W' = W + BA$. At rank $r = 8$, only 1.6M parameters train: under 0.1% of the model.</li>
+          <li>LoRA also saves storage: a 6.3 MB adapter instead of a full copy. The activations are still needed, so the memory saving is less than 0.1% suggests.</li>
+        </ul>
+      </section>
+
+      <section class="step" data-step="5">
+        <h2><span class="n"></span>Choose what to quantise</h2>
+        <ul>
+          <li><b>Quantisation</b> stores weights in fewer bits: 8 or 4 instead of 16 or 32. A scale factor maps each block of weights onto a handful of integer levels.</li>
+          <li>It saves memory, at some cost in accuracy (step 10 measures it).</li>
+          <li><b>QLoRA</b> quantises the frozen base model to 4 bits, and trains LoRA adapters on top at higher precision. <b>Gradient checkpointing</b> saves more memory by recomputing some activations instead of storing them.</li>
+          <li>Training the <span class="tb">chatbot</span> this way peaked at 2.24 GB. The <span class="ta">classifier</span> is small enough already.</li>
+        </ul>
+      </section>
+
+      <section class="step" data-step="6">
+        <h2><span class="n"></span>Choose the training data</h2>
+        <ul>
+          <li><b>What</b>: tweets labelled with their topic; conversations between a user and an assistant (<code>no_robots</code>).</li>
+          <li><b>How much</b>: 4,374 tweets; 9,500 conversations. Quality and variety matter as much as quantity.</li>
+          <li><b>Splits</b>: keep separate <em>training</em>, <em>validation</em> and <em>test</em> sets. Validation guides choices during training; the test set is used once, at the end. Mixing them makes results look better than they are.</li>
+          <li><b>Batches</b>: each update averages the gradient over a batch. Bigger batches give steadier gradients but need more memory. <b>Gradient accumulation</b> adds up several small batches before each update: the chatbot uses 4 × 2, an effective batch of 8.</li>
+        </ul>
+      </section>
+
+      <section class="step" data-step="7">
+        <h2><span class="n"></span>Supervised fine-tuning: a special case</h2>
+        <ul>
+          <li>Training on conversations is <b>supervised fine-tuning</b> (SFT). A conversation has to become one token sequence. A <b>chat template</b> marks each turn with special tokens, such as <code>&lt;|im_start|&gt;user</code> … <code>&lt;|im_end|&gt;</code>.</li>
+          <li>The template must match the one used when chatting. Our base model has none, so we borrow the <code>-Instruct</code> model's.</li>
+          <li><b>Loss masking</b>: the prompt is only input (label −100). The loss counts the reply, including its final <code>&lt;|im_end|&gt;</code>, which is how the model learns to stop.</li>
+          <li>With several assistant turns, we can train on all of them, or only on the last.</li>
+          <li>SFT mostly teaches the <em>form</em> of a reply; the knowledge comes from pretraining.</li>
+        </ul>
+      </section>
+
+      <section class="step" data-step="8">
+        <h2><span class="n"></span>Choose the hyperparameters</h2>
+        <ul>
+          <li><b>Learning rate</b> $\eta$: too small and training creeps; too large and it overshoots or diverges.</li>
+          <li><b>Schedule</b>: warm up from zero over the first few steps, then decay, for example along a cosine.</li>
+          <li><b>Weight decay</b>: a small pull of every weight towards zero, against overfitting.</li>
+          <li><b>Length</b>: a number of epochs (passes over the data), or a fixed number of steps.</li>
+          <li><span class="ta">Classifier</span>: $\eta = 5 \times 10^{-5}$, linear decay, 2 epochs. <span class="tb">Chatbot</span>: $\eta = 2 \times 10^{-4}$, 30 warmup steps then cosine, weight decay 0.1, 300 steps.</li>
+          <li>There is no formula for these values. We try some and read the loss curves.</li>
+        </ul>
+      </section>
+
+      <section class="step" data-step="9">
+        <h2><span class="n"></span>Read the loss curves</h2>
+        <ul>
+          <li>Plot the training loss and the validation loss against the step number.</li>
+          <li><b>Healthy</b>: both fall, then level off together.</li>
+          <li><b>Underfitting</b>: both stay high. Train for longer, raise the learning rate, or use a bigger model.</li>
+          <li><b>Overfitting</b>: the training loss keeps falling while the validation loss rises, because the model is memorising its training data. Stop earlier, get more data, or regularise.</li>
+          <li>In lab 6, the second epoch cut the training loss from 0.64 to 0.29, but the validation loss rose from 0.42 to 0.48: the start of overfitting.</li>
+        </ul>
+      </section>
+
+      <section class="step" data-step="10">
+        <h2><span class="n"></span>Evaluate: intrinsic metrics</h2>
+        <ul>
+          <li>An <b>intrinsic</b> metric measures the model itself, with no task or labels. For a language model, that is the loss on held-out text.</li>
+          <li><b>Perplexity</b> = exp(mean loss). SmolLM2-135M's mean loss on "The cat sat on the mat" is 4.33, so its perplexity is about 76: as uncertain as choosing among 76 equally likely tokens. Lower is better.</li>
+          <li>Compare like with like: the same text, tokeniser and context length.</li>
+          <li>Perplexity shows what our choices cost. Quantising SmolLM2-1.7B to 4 bits raises its perplexity on WikiText-2 from 10.7 to 12.4, still better than the 16-bit 360M model (15.3). Fine-tuning SmolLM2-135M on Shakespeare raised its WikiText-2 perplexity from 20.5 to 47.3.</li>
+          <li class="src">Real values from lab 10.</li>
+        </ul>
+      </section>
+
+      <section class="step" data-step="11">
+        <h2><span class="n"></span>Evaluate: extrinsic metrics</h2>
+        <ul>
+          <li>An <b>extrinsic</b> metric measures performance on the task itself, and needs labelled examples.</li>
+          <li><span class="ta">Classifier</span>: a <b>confusion matrix</b> counts predictions against true labels. <b>Precision</b>: of the tweets predicted "science", how many are? <b>Recall</b>: of the science tweets, how many were found? <b>F1</b> combines the two. Unlike accuracy, it isn't fooled by a rare class. Lab 6 reached F1 = 0.87 on the validation set.</li>
+          <li><b>Benchmarks</b> often use multiple-choice questions, scored by which answer the model finds most probable.</li>
+          <li><span class="tb">Chatbot</span>: open-ended replies have no single right answer. Compare them with reference texts (BLEU, ROUGE), or ask another model or people to judge. Our adapter answers in the right form, but invents facts.</li>
+          <li class="src">Real replies from lab 9 (SmolLM2-1.7B), truncated.</li>
+        </ul>
+      </section>
+
+      <section class="step" data-step="12">
+        <h2><span class="n"></span>Feed preferences back into training</h2>
+        <ul>
+          <li>If the real test is "which reply do people prefer?", collect that as data: a prompt with a preferred reply ✓ and a rejected one ✗.</li>
+          <li><b>RLHF</b>: train a <b>reward model</b> (a pretrained model with a scalar head, step 3) to score replies as people would. Then reinforcement learning steers the chatbot towards high scores.</li>
+          <li><b>DPO</b>: train the chatbot on the pairs directly, with no reward model.</li>
+          <li>SmolLM2-1.7B-Instruct was made this way: SFT on about a million conversations, then preference tuning.</li>
+        </ul>
+      </section>
+
+      <section class="step" data-step="13">
+        <h2><span class="n"></span>Five configurations</h2>
+        <ul>
+          <li>Scroll through, or hover over, each configuration to see its choices in the diagram and the strip.</li>
+        </ul>
+        <ol id="cfgs"></ol>
+      </section>
+    </div>
+
+    <div id="fig">
+      <svg id="svg" viewBox="-20 210 1120 1060" preserveAspectRatio="xMidYMid meet" role="img"
+        aria-label="Animated diagram of two fine-tuning projects"></svg>
+      <div id="badge"></div>
+      <div id="strip"></div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.21/katex.min.js"></script>
+  <script>
+    const DATA = {"tweet": {"text": "Earth’s Oceans At A Tipping Point, Landmark UN Climate Change Report Warns via {@Forbes@} {{URL}} ", "label": "science_&_technology", "names": ["arts_&_culture", "business_&_entrepreneurs", "pop_culture", "daily_life", "sports_&_gaming", "science_&_technology"], "tokens": ["[CLS]", "earth", "’", "s", "oceans", "at", "a", "tipping", "point", ",", "landmark", "un", "climate", "change", "report", "warns", "via", "{", "@", "forbes", "@", "}", "{", "{", "ur", "##l", "}", "}", "[SEP]"], "splits": {"train": 4374, "validation": 189, "test": 1693}}, "pad": [{"tokens": ["[CLS]", "a", "short", "one", "[SEP]", "[PAD]", "[PAD]", "[PAD]"], "mask": [1, 1, 1, 1, 1, 0, 0, 0]}, {"tokens": ["[CLS]", "a", "rather", "longer", "sentence", "than", "that", "[SEP]"], "mask": [1, 1, 1, 1, 1, 1, 1, 1]}], "pii": ["[CLS]", "my", "name", "is", "anna", "smith", "and", "i", "live", "in", "leeds", ".", "[SEP]"], "bert_params": {"emb": 23835648, "attn": 14174208, "norm": 18432, "ffn": 28334592, "head": 595206}, "bert_total": 66958086, "shakes": {"first": "Now", "ids": [2696, 314, 260, 4339, 282, 653, 39763], "rows": [{"tok": " is", "p": 0.004674808122217655, "top": ",", "ptop": 0.14880739152431488}, {"tok": " the", "p": 0.26598259806632996, "top": " the", "ptop": 0.26598259806632996}, {"tok": " winter", "p": 0.00038069853326305747, "top": " time", "ptop": 0.16373275220394135}, {"tok": " of", "p": 0.18770474195480347, "top": " of", "ptop": 0.18770474195480347}, {"tok": " our", "p": 0.16914069652557373, "top": " ", "ptop": 0.2927859425544739}, {"tok": " discontent", "p": 0.6167988181114197, "top": " discontent", "ptop": 0.6167988181114197}]}, "catmat": {"first": "The", "ids": [504, 2644, 2643, 335, 260, 1171], "rows": [{"tok": " cat", "p": 0.0001444315566914156, "top": " first", "ptop": 0.021923046559095383}, {"tok": " sat", "p": 0.003147667273879051, "top": " is", "ptop": 0.09167654812335968}, {"tok": " on", "p": 0.23170988261699677, "top": " on", "ptop": 0.23170988261699677}, {"tok": " the", "p": 0.597277820110321, "top": " the", "ptop": 0.597277820110321}, {"tok": " mat", "p": 0.006186432205140591, "top": " bed", "ptop": 0.07220111787319183}], "mean": 4.333367463082662, "ppl": 76.20045723109446}, "params135": 134515008, "mc": {"q": "Which of these is a renewable source of energy?", "rows": [{"choice": "coal", "logp": -7.431924343109131, "ntok": 1}, {"choice": "wind", "logp": -5.033945560455322, "ntok": 1}, {"choice": "oil", "logp": -8.947208404541016, "ntok": 1}, {"choice": "natural gas", "logp": -8.736186172813177, "ntok": 2}]}, "chat": {"conv": [{"role": "system", "content": "You are a concise assistant."}, {"role": "user", "content": "What is the boiling point of water at sea level?"}, {"role": "assistant", "content": "100 °C, or 212 °F."}], "text": "<|im_start|>system\nYou are a concise assistant.<|im_end|>\n<|im_start|>user\nWhat is the boiling point of water at sea level?<|im_end|>\n<|im_start|>assistant\n100 °C, or 212 °F.<|im_end|>\n", "tokens": ["<|im_start|>", "system", "\n", "You", " are", " a", " concise", " assistant", ".", "<|im_end|>", "\n", "<|im_start|>", "user", "\n", "What", " is", " the", " boiling", " point", " of", " water", " at", " sea", " level", "?", "<|im_end|>", "\n", "<|im_start|>", "ass", "istant", "\n", "1", "0", "0", " °", "C", ",", " or", " ", "2", "1", "2", " °", "F", ".", "<|im_end|>", "\n"], "ids": [1, 9690, 198, 2683, 359, 253, 19484, 11173, 30, 2, 198, 1, 4093, 198, 1780, 314, 260, 16891, 1225, 282, 913, 418, 3426, 1106, 47, 2, 198, 1, 520, 9531, 198, 33, 32, 32, 13518, 51, 28, 355, 216, 34, 33, 34, 13518, 54, 30, 2, 198], "labels": [-100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, 33, 32, 32, 13518, 51, 28, 355, 216, 34, 33, 34, 13518, 54, 30, 2, 198]}};
+  </script>
+  <script>
+    function main() {
+      "use strict";
+      const NS = 'http://www.w3.org/2000/svg';
+      const STATIC = /[?&]static\b/.test(location.search);
+      const SHOT = /[?&]shot\b/.test(location.search);
+      if (STATIC) document.documentElement.classList.add('static');
+      const svg = document.getElementById('svg');
+
+      /* ===================== HELPERS ===================== */
+      function E(tag, attrs, parent, text) {
+        const e = document.createElementNS(NS, tag);
+        if (attrs) for (const k in attrs) { if (attrs[k] != null) e.setAttribute(k, attrs[k]); }
+        if (text != null) e.textContent = text;
+        if (parent) parent.appendChild(e);
+        return e;
+      }
+      const G = {};                       // toggleable groups, by id
+      function grp(id, parent) {
+        if (G[id]) throw new Error('duplicate group ' + id);
+        const g = E('g', { id, class: 'fade' }, parent); g.style.opacity = 0; G[id] = g; return g;
+      }
+      function hex(c) { c = c.replace('#', ''); return [0, 2, 4].map(i => parseInt(c.substr(i, 2), 16)); }
+      function mix(a, b, t) { const A = hex(a), B = hex(b); return 'rgb(' + A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(',') + ')'; }
+      function rnd(a, b, c) { let h = Math.imul(a + 1, 374761393) ^ Math.imul(b + 7, 668265263) ^ Math.imul(c + 13, 1274126177); h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16; return ((h >>> 0) % 10007) / 10007; }
+      const fmt = n => n.toLocaleString('en-GB');
+      const C = {
+        emb: '#fadadd', mha: '#fde0b9', an: '#f0f5c2', ffn: '#c4e6f4', lin: '#dcdcf0', sm: '#c9e7d1', br: '#f2f2f2',
+        encM: '#dce8f7', decM: '#f6e0ea', acc: '#d9480f', ink: '#000', grey: '#555', muted: '#777', frz: '#d9d9d9',
+        red: '#b8352a', blue: '#2c6fb7', green: '#2f8a4c', reply: '#fbd2a8', prompt: '#e4e4e4'
+      };
+      const FS = 27, FSS = 23;            // standard and small world font sizes
+
+      /* text with `mono` segments and _{x} / ^{x} sub/superscripts */
+      function T(p, x, y, s, fs, o) {
+        o = o || {}; fs = fs || FS;
+        const t = E('text', { x, y, 'font-size': fs, 'text-anchor': o.a || 'start', fill: o.c || C.ink, 'font-weight': o.w || null, class: o.mono ? 'mono' : null, 'font-style': o.i ? 'italic' : null, transform: o.rot ? `rotate(${o.rot} ${x} ${y})` : null, 'text-decoration': o.strike ? 'line-through' : null }, p);
+        let cur = 0;
+        const add = (txt, off, small, mono) => { const a = { dy: off - cur }; if (small) a['font-size'] = fs * 0.72; if (mono) a.class = 'mono'; E('tspan', a, t, txt); cur = off; };
+        String(s).split('`').forEach((seg, k) => {
+          if (!seg) return;
+          if (k % 2) { add(seg, 0, false, true); return; }
+          const re = /([_^])(\{[^}]*\})/g; let last = 0, m;
+          while ((m = re.exec(seg))) { if (m.index > last) add(seg.slice(last, m.index), 0, false); add(m[2].replace(/[{}]/g, ''), m[1] === '_' ? fs * 0.3 : -fs * 0.4, true); last = re.lastIndex; }
+          if (last < seg.length) add(seg.slice(last), 0, false);
+        });
+        return t;
+      }
+      /* plain text: no markup processing (for model outputs, tokens etc.) */
+      function P(p, x, y, s, fs, o) {
+        o = o || {};
+        return E('text', { x, y, 'font-size': fs || FS, 'text-anchor': o.a || 'start', fill: o.c || C.ink, 'font-weight': o.w || null, class: o.mono ? 'mono' : null, 'font-style': o.i ? 'italic' : null, 'xml:space': 'preserve' }, p, s);
+      }
+      /* KaTeX in a foreignObject: '$...$' segments are typeset */
+      const esc = s => s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+      const tex = s => window.katex ? katex.renderToString(s, { throwOnError: false }) : esc(s);
+      function texMix(s) { return s.split('$').map((seg, k) => k % 2 ? tex(seg) : esc(seg).replace(/`([^`]*)`/g, '<span style="font-family:var(--mono)">$1</span>')).join(''); }
+      function texHTML(html) { return html.replace(/\$([^$]+)\$/g, (_, m) => tex(m)); }
+      function M(p, x, y, s, fs, o) {
+        o = o || {}; fs = fs || FS; const W = 1400, H = fs * 3.2, a = o.a || 'start';
+        const fo = E('foreignObject', { x: a === 'middle' ? x - W / 2 : a === 'end' ? x - W : x, y: y - fs * 0.35 - H / 2, width: W, height: H }, p);
+        const d = document.createElement('div'); d.className = 'fo';
+        d.style.cssText = `height:${H}px;justify-content:${a === 'middle' ? 'center' : a === 'end' ? 'flex-end' : 'flex-start'};font-size:${fs}px;color:${o.c || C.ink};${o.w ? 'font-weight:' + o.w + ';' : ''}`;
+        d.innerHTML = '<span>' + texMix(s) + '</span>'; fo.appendChild(d); return fo;
+      }
+      function R(p, x, y, w, h, o) {
+        o = o || {};
+        return E('rect', { x, y, width: w, height: h, rx: o.rx == null ? 8 : o.rx, fill: o.fill || '#fff', stroke: o.stroke === undefined ? '#222' : o.stroke || 'none', 'stroke-width': o.sw || 2.2, 'stroke-dasharray': o.dash || null, opacity: o.op == null ? null : o.op, class: o.cls || null }, p);
+      }
+      function L(p, pts, o) {
+        o = o || {};
+        return E('path', { d: 'M' + pts.map(q => q.join(' ')).join(' L'), fill: 'none', stroke: o.c || '#222', 'stroke-width': o.w || 2.2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', 'stroke-dasharray': o.dash || null, class: o.cls || null }, p);
+      }
+      function A(p, pts, o) {
+        o = o || {}; L(p, pts, o);
+        const [x2, y2] = pts[pts.length - 1], [x1, y1] = pts[pts.length - 2];
+        const a = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI, s = o.s || 13;
+        E('path', { d: `M0 0 L${-s} ${-s / 2} L${-s} ${s / 2} Z`, fill: o.c || '#222', transform: `translate(${x2} ${y2}) rotate(${a})` }, p);
+      }
+      /* a weight grid; `levels` posterises it (quantised weights) */
+      function grid(p, x, y, rows, cols, cw, ch, color, seed, o) {
+        o = o || {}; const g = E('g', {}, p), lv = o.levels;
+        for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+          let v = rnd(seed * 31 + r, c, seed);
+          if (lv) v = Math.round(v * (lv - 1)) / (lv - 1);
+          E('rect', { x: x + c * cw, y: y + r * ch, width: cw, height: ch, fill: mix('#ffffff', color, (o.lo == null ? 0.25 : o.lo) + (o.hi == null ? 0.75 : o.hi) * v), stroke: o.gap === 0 ? 'none' : '#fff', 'stroke-width': 0.6 }, g);
+        }
+        if (o.border !== false) E('rect', { x, y, width: cols * cw, height: rows * ch, fill: 'none', stroke: o.bc || '#555', 'stroke-width': 1.2 }, g);
+        return g;
+      }
+      const probe = E('text', { 'font-size': 20, opacity: 0 }, svg);
+      function tw(s, fs, mono) { probe.setAttribute('font-size', fs); probe.setAttribute('class', mono ? 'mono' : ''); probe.textContent = s; return probe.getComputedTextLength(); }
+      /* a row of token chips centred on cx; returns centres. Each item: string or {t, fill, c, w} */
+      function chipRow(p, cx, y, items, fs, o) {
+        o = o || {}; fs = fs || 22; const pad = o.pad || 9, gap = o.gap || 6, h = o.h || fs * 1.55;
+        const its = items.map(it => typeof it === 'string' ? { t: it } : it);
+        const ws = its.map(it => Math.max(o.minw || 0, tw(it.t, fs, !it.sans) + 2 * pad));
+        const tot = ws.reduce((a, b) => a + b, 0) + gap * (its.length - 1); let x = o.left != null ? o.left : cx - tot / 2; const cs = [];
+        its.forEach((it, i) => {
+          R(p, x, y, ws[i], h, { rx: 6, fill: it.fill || '#fff', stroke: it.stroke || '#777', sw: it.sw || 1.6, dash: it.dash });
+          P(p, x + ws[i] / 2, y + h / 2 + fs * 0.36, it.t, fs, { a: 'middle', mono: !it.sans, c: it.c, w: it.w });
+          cs.push({ x: x + ws[i] / 2, l: x, w: ws[i] }); x += ws[i] + gap;
+        });
+        return cs;
+      }
+      function lock(p, x, y, s, c) {
+        s = s || 1; c = c || '#555';
+        const g = E('g', { transform: `translate(${x} ${y}) scale(${s})` }, p);
+        E('path', { d: 'M-9 0 V-8 a9 9 0 0 1 18 0 V0', fill: 'none', stroke: c, 'stroke-width': 3.2 }, g);
+        E('rect', { x: -13, y: 0, width: 26, height: 20, rx: 3, fill: c }, g);
+        E('circle', { cx: 0, cy: 9, r: 3, fill: '#fff' }, g);
+        return g;
+      }
+      function oplus(p, cx, cy, r) {
+        E('circle', { cx, cy, r, fill: '#fff', stroke: '#222', 'stroke-width': 2.2 }, p);
+        E('path', { d: `M${cx - r * .6} ${cy} H${cx + r * .6} M${cx} ${cy - r * .6} V${cy + r * .6}`, stroke: '#222', 'stroke-width': 2.2 }, p);
+      }
+      /* little vector: a column of cells */
+      function vec(p, cx, y, h, color, seed) {
+        const n = 5, ch = h / n;
+        for (let i = 0; i < n; i++) E('rect', { x: cx - 8, y: y + i * ch, width: 16, height: ch, fill: mix('#ffffff', color, 0.3 + 0.7 * rnd(seed, i, 3)), stroke: '#fff', 'stroke-width': .6 }, p);
+        E('rect', { x: cx - 8, y, width: 16, height: h, fill: 'none', stroke: '#555', 'stroke-width': 1 }, p);
+      }
+      /* axes for small plots: returns mapping functions */
+      function axes(p, x, y, w, h, o) {
+        o = o || {};
+        L(p, [[x, y], [x, y + h], [x + w, y + h]], { w: 2 });
+        if (o.xl) T(p, x + w / 2, y + h + (o.xlo || 38), o.xl, o.fs || FSS, { a: 'middle', c: '#444' });
+        if (o.yl) T(p, x - (o.ylo || 16), y + h / 2, o.yl, o.fs || FSS, { a: 'middle', c: '#444', rot: -90 });
+        return { X: v => x + (v - o.x0) / (o.x1 - o.x0) * w, Y: v => y + h - (v - o.y0) / (o.y1 - o.y0) * h };
+      }
+      const NBSP = ' ';
+      const vis = t => t.replace(/^ /, '␣').replace(/\n/g, '⏎');
+
+      /* ===================== WORLD ===================== */
+      /* Two recipe columns, classifier (A) at x 0..480 and chatbot (B) at x 600..1080, starting at y = TOPY.
+         Above them, y 40..230, is a band for evaluation panels. Column drawing uses column-local coordinates. */
+      const world = E('g', {}, svg);
+      E('defs', {}, world).innerHTML =
+        '<linearGradient id="g-enc" x1="0" x2="0" y1="1" y2="0"><stop offset="0" stop-color="#cfe0f5"/><stop offset="1" stop-color="#e9f1fb"/></linearGradient>' +
+        '<linearGradient id="g-dec" x1="0" x2="0" y1="1" y2="0"><stop offset="0" stop-color="#f3d2e0"/><stop offset="1" stop-color="#fbedf3"/></linearGradient>';
+      const TOPY = 250, COLX = { A: 0, B: 600 }, TC = { A: C.blue, B: '#b0457a' };
+      const band = E('g', { id: 'band' }, world);
+      const COL = {};
+      for (const T of ['A', 'B']) COL[T] = E('g', { class: 'col', transform: `translate(${COLX[T]} ${TOPY})` }, world);
+      const over = E('g', { id: 'over' }, world);
+
+      const RC = 240, MX = [30, 450];
+      const Y = { loss: [20, 100], head: [122, 385], hid: [396, 444], model: [458, 800], chips: [818, 858], data: [880, 1010] };
+      let clipN = 0;
+      function texture(g, x, y, w, h, color, seed, levels) {
+        const cs = levels ? 30 : 15, cols = Math.floor(w / cs), rows = Math.floor(h / cs);
+        const cp = 'cp' + (++clipN), clip = E('clipPath', { id: cp }, g);
+        E('rect', { x, y, width: w, height: h, rx: 18 }, clip);
+        const t = E('g', { 'clip-path': `url(#${cp})` }, g);
+        grid(t, x, y, rows + 1, cols + 1, cs, cs, color, seed, { lo: 0, hi: levels ? 0.5 : 0.22, levels, border: false, gap: levels ? undefined : 0 });
+      }
+      /* the model block, in colour (pretrained/trainable), grey (frozen) or grey+posterised (4-bit) */
+      function monoBlock(g, x, y, w, h, kind, title, sub, par, look) {
+        const fill = look === 'colour' ? (kind === 'enc' ? 'url(#g-enc)' : 'url(#g-dec)') : '#e6e6e6';
+        R(g, x, y, w, h, { rx: 18, fill, sw: 2.6 });
+        texture(g, x, y, w, h, look === 'colour' ? (kind === 'enc' ? '#6f95c9' : '#c97a9c') : '#8a8a8a', x * 7 + (look === 'q' ? 5 : look === 'grey' ? 3 : 1), look === 'q' ? 4 : 0);
+        R(g, x, y, w, h, { rx: 18, fill: 'none', sw: 2.6 });
+        const cy = y + h / 2;
+        R(g, x + w / 2 - 175, cy - 58, 350, par ? 118 : 88, { rx: 10, fill: 'rgba(255,255,255,.82)', stroke: null });
+        T(g, x + w / 2, cy - 12, title, 40, { a: 'middle', w: 700 });
+        T(g, x + w / 2, cy + 24, sub, FSS, { a: 'middle', c: '#333' });
+        if (par) T(g, x + w / 2, cy + 52, par, FSS, { a: 'middle', c: '#555' });
+      }
+      const MODELS = {
+        A: { enc: { kind: 'enc', title: 'DistilBERT', sub: 'encoder · 6 layers · d = 768', par: '66M parameters' },
+             rm: { kind: 'dec', title: 'Reward model', sub: 'a pretrained LM', par: '+ a scalar head' } },
+        B: { dec17: { kind: 'dec', title: 'SmolLM2-1.7B', sub: 'decoder · 24 layers · d = 2048', par: '1.7B parameters' } }
+      };
+      const TAGS = { A_cls: 'Classifier', A_rm: 'Reward model', B_chat: 'Chatbot', B_gen: 'Shakespeare generator' };
+      for (const [k, s] of Object.entries(TAGS)) { const T0 = k[0]; T(grp('tag_' + k, world), COLX[T0] + RC, TOPY - 14, s, 30, { a: 'middle', w: 700, c: TC[T0] }); }
+
+      for (const T0 of ['A', 'B']) {
+        const col = COL[T0], [my0, my1] = Y.model;
+        /* an empty slot, before a model is chosen */
+        const sk = grp(`${T0}_m_skel`, col);
+        R(sk, MX[0], my0, MX[1] - MX[0], my1 - my0, { rx: 18, fill: '#fafafa', stroke: '#aaa', dash: '12 9' });
+        T(sk, RC, (my0 + my1) / 2 + 10, 'pretrained model', 32, { a: 'middle', c: '#999', w: 600 });
+        for (const [key, m] of Object.entries(MODELS[T0])) {
+          for (const look of ['colour', 'grey', 'q'])
+            monoBlock(grp(`${T0}_m_${key}_${look}`, col), MX[0], my0, MX[1] - MX[0], my1 - my0, m.kind, m.title, m.sub, m.par, look);
+        }
+        /* overlays: trainable outline, padlock, LoRA tabs, 4-bit badge */
+        R(grp(`${T0}_ol`, col), MX[0] - 6, my0 - 6, MX[1] - MX[0] + 12, my1 - my0 + 12, { rx: 22, fill: 'none', stroke: C.acc, sw: 6, cls: 'pulse' });
+        lock(grp(`${T0}_lk`, col), MX[1] - 30, my0 + 32, 1.15);
+        const tb = grp(`${T0}_tab`, col);
+        for (let i = 0; i < 6; i++) {
+          const ty = my0 + 58 + i * 46;
+          if (ty > my0 + 100 && ty < my0 + 230) continue;    // leave the title readable
+          R(tb, MX[1] - 64, ty, 56, 26, { rx: 5, fill: C.acc, stroke: '#8a2d06', sw: 1.6 });
+          T(tb, MX[1] - 36, ty + 19, 'LoRA', 15, { a: 'middle', c: '#fff', w: 700 });
+        }
+        const qb = grp(`${T0}_qb`, col);
+        R(qb, MX[0] + 14, my0 + 16, 128, 34, { rx: 6, fill: '#333', stroke: null }); T(qb, MX[0] + 78, my0 + 40, '4-bit NF4', 20, { a: 'middle', c: '#fff', w: 700 });
+      }
+
+      /* ---------- data cards ---------- */
+      const DATA_CARDS = {
+        A: {
+          blank: { kind: 'data', lines: [], dash: true },
+          split: { kind: 'labelled tweets', label: 'science & technology', lines: ['Earth’s Oceans At A Tipping Point, …'], split: true },
+          pref: { kind: 'preference pairs', lines: ['“Explain recursion to a ten-year-old.”', '✓ Russian dolls…   ✗ A function that…'] }
+        },
+        B: {
+          blank: { kind: 'data', lines: [], dash: true },
+          conv: { kind: 'conversations', lines: ['user: “What is the boiling point of water…?”', 'assistant: “100 °C, or 212 °F.”'] },
+          held: { kind: 'held-out text (no training)', lines: ['The cat sat on the mat'] },
+          pref: { kind: 'preference pairs', lines: ['“Explain recursion to a ten-year-old.”', '✓ Russian dolls…   ✗ A function that…'] },
+          shakes: { kind: 'raw text: tiny-shakespeare', lines: ['Now is the winter of our discontent', 'Made glorious summer by this sun of York;'] }
+        }
+      };
+      for (const T0 of ['A', 'B']) for (const [k, d] of Object.entries(DATA_CARDS[T0])) {
+        const g = grp(`${T0}_d_${k}`, COL[T0]), [y0, y1] = Y.data;
+        R(g, 8, y0, 464, y1 - y0, { rx: 12, fill: d.dash ? '#fff' : '#fffaf2', stroke: d.dash ? '#999' : '#b9a98c', dash: d.dash ? '9 7' : null });
+        T(g, 26, y0 + 34, d.kind, FSS, { w: 700, c: d.dash ? '#999' : '#5b4a2a' });
+        if (d.label) { const w = tw(d.label, 21) + 22; R(g, 454 - w, y0 + 10, w, 34, { rx: 17, fill: '#5b4a2a', stroke: null }); P(g, 454 - w / 2, y0 + 34, d.label, 21, { a: 'middle', c: '#fff', w: 600 }); }
+        d.lines.forEach((s, i) => P(g, 26, y0 + 72 + i * 34, s, 22, { c: '#333', i: k === 'shakes' }));
+        if (d.split) {
+          const S = DATA.tweet.splits;
+          [['train', S.train, 22, 136], ['validation', S.validation, 164, 160], ['test', S.test, 330, 138]].forEach(([n, v, x, w], i) => {
+            R(g, x, y0 + 84, w, 36, { rx: 6, fill: i === 2 ? '#eee' : '#fff', stroke: '#b9a98c', sw: 1.4 });
+            T(g, x + w / 2 - (i === 2 ? 12 : 0), y0 + 110, `${n} ${fmt(v)}`, 21, { a: 'middle', c: '#333' });
+          });
+          lock(g, 451, y0 + 98, 0.6);
+        }
+        A(g, [[RC, y0], [RC, Y.chips[1] + 4]], { c: '#777', w: 2 });
+      }
+
+      /* ---------- token chips and hidden vectors: positions stored in CHIPX[T][key] ---------- */
+      const CHIPS = {
+        A: {
+          blank: [{ t: '[CLS]' }, { t: '…', sans: true }, { t: '…', sans: true }, { t: '…', sans: true }, { t: '[SEP]' }],
+          tweet: [{ t: '[CLS]' }, { t: 'earth' }, { t: '’' }, { t: 's' }, { t: '…', sans: true, cols: 0 }, { t: '[SEP]' }],
+          pref: [{ t: 'prompt', sans: true, fill: C.prompt, cols: 1 }, { t: '✓ chosen', sans: true, fill: '#d7efd9', cols: 2 }, { t: '✗ rejected', sans: true, fill: '#f6d6d2', cols: 2 }]
+        },
+        B: {
+          blank: [{ t: '…', sans: true }, { t: '…', sans: true }, { t: '…', sans: true }, { t: '…', sans: true }, { t: '…', sans: true }],
+          conv: [{ t: 'system + user', sans: true, cols: 2 }, { t: 'reply', sans: true, cols: 2 }, { t: '<|im_end|>', cols: 1 }],
+          convm: [{ t: 'system + user', sans: true, fill: C.prompt, cols: 2 }, { t: 'reply', sans: true, fill: C.reply, cols: 2 }, { t: '<|im_end|>', fill: C.reply, cols: 1 }],
+          held: [{ t: 'The' }, { t: 'cat' }, { t: 'sat' }, { t: 'on' }, { t: 'the' }, { t: 'mat' }],
+          pref: [{ t: 'prompt', sans: true, fill: C.prompt, cols: 1 }, { t: '✓ chosen', sans: true, fill: '#d7efd9', cols: 2 }, { t: '✗ rejected', sans: true, fill: '#f6d6d2', cols: 2 }],
+          shakes: [{ t: 'Now' }, { t: 'is' }, { t: 'the' }, { t: 'winter' }, { t: 'of' }, { t: '…', sans: true, cols: 0 }]
+        }
+      };
+      const CHIPX = { A: {}, B: {} };
+      for (const T0 of ['A', 'B']) for (const [k, items] of Object.entries(CHIPS[T0])) {
+        const g = grp(`${T0}_c_${k}`, COL[T0]), xs = [];
+        const cs = chipRow(g, RC, Y.chips[0], items, 22, { pad: 9, minw: k === 'blank' ? 56 : 0, gap: k === 'conv' || k === 'convm' ? 4 : 6 });
+        cs.forEach((c, i) => {
+          const n = items[i].cols == null ? 1 : items[i].cols;
+          for (let j = 0; j < n; j++) xs.push(n === 1 ? c.x : c.l + (j + 0.5) * c.w / n);
+        });
+        CHIPX[T0][k] = xs;
+        const colour = T0 === 'A' && k !== 'pref' ? '#6f95c9' : '#c97a9c';
+        xs.forEach((x, i) => { vec(g, x, Y.hid[0], Y.hid[1] - Y.hid[0], colour, i + k.length * 7 + (T0 === 'B' ? 50 : 0)); L(g, [[x, Y.model[0]], [x, Y.hid[1]]], { c: '#888', w: 1.6 }); });
+      }
+
+      /* ---------- heads ---------- */
+      function hbox(g, x, y, w, h, fill, s, fs) { R(g, x, y, w, h, { rx: 7, fill }); T(g, x + w / 2, y + h / 2 + (fs || FSS) * 0.36, s, fs || FSS, { a: 'middle' }); }
+      const HEAD_TOP = 112;      // where the head's output enters the loss box
+      const TOPICS = ['arts', 'biz', 'pop', 'daily', 'sport', 'sci'];
+      const SEQP = [.14, .17, .19, .15, .12, .23];
+      /* p(true next token) for each chip set; null = no bar; 'm' = masked (label -100) */
+      const LM_P = {
+        blank: [.3, .5, .2, .6, .4], conv: [.3, .45, .35, .6, .5], convm: ['m', 'm', .55, .7, .8],
+        held: DATA.catmat.rows.map(r => r.p).concat([null]), pref: [0, .6, .7, .3, .2],
+        shakes: DATA.shakes.rows.slice(0, 5).map(r => r.p)
+      };
+      function makeHead(T0, head, ck) {
+        const id = `${T0}_h_${head}_${ck}`; if (G[id]) return id;
+        const g = grp(id, COL[T0]), xs = CHIPX[T0][ck];
+        let box;
+        if (head === 'seq' || head === 'scalar') {
+          const src = ck === 'pref' ? xs[xs.length - 1] : xs[0];
+          L(g, [[src, Y.hid[0]], [src, 366], [96, 366]], { c: C.acc, w: 3 });
+          if (head === 'seq') {
+            hbox(g, 96, 342, 300, 46, C.lin, 'Linear 768 → 768');
+            hbox(g, 96, 286, 300, 46, C.lin, 'Linear 768 → 6');
+            hbox(g, 96, 230, 300, 46, C.sm, 'softmax');
+            SEQP.forEach((p, i) => {
+              const x = 120 + i * 46, h = p * 300;
+              R(g, x, 205 - h, 34, h, { rx: 2, fill: i === 5 ? C.acc : '#999', stroke: null });
+              T(g, x + 17, 223, TOPICS[i], 18, { a: 'middle', c: '#444' });
+            });
+            A(g, [[246, 125], [246, HEAD_TOP - 10]], { c: '#555', w: 2 });
+            box = [86, 116, 320, 280];
+          } else {
+            hbox(g, 96, 342, 300, 46, C.lin, 'Linear d → 1');
+            const cx = 246, cy = 300, r = 86;
+            E('path', { d: `M${cx - r} ${cy} A${r} ${r} 0 0 1 ${cx + r} ${cy}`, fill: '#f4f4f4', stroke: '#222', 'stroke-width': 2.2 }, g);
+            E('path', { d: `M${cx - r} ${cy} A${r} ${r} 0 0 1 ${cx + r * Math.cos(Math.PI * .26)} ${cy - r * Math.sin(Math.PI * .26)}`, fill: 'none', stroke: C.acc, 'stroke-width': 12 }, g);
+            L(g, [[cx, cy], [cx + (r - 18) * Math.cos(Math.PI * .26), cy - (r - 18) * Math.sin(Math.PI * .26)]], { w: 4 });
+            T(g, cx, cy + 30, 'score', FSS, { a: 'middle', w: 600 });
+            A(g, [[cx, 210], [cx, HEAD_TOP - 10]], { c: '#555', w: 2 });
+            box = [86, 196, 320, 200];
+          }
+        } else {
+          const x0 = Math.min(...xs) - 34, x1 = Math.max(...xs) + 34;
+          xs.forEach(x => L(g, [[x, Y.hid[0]], [x, 388]], { c: C.acc, w: 2.4 }));
+          hbox(g, x0, 342, x1 - x0, 46, C.lin, ck === 'blank' ? 'LM head (pretrained)' : 'Linear d → 49,152 (vocab)');
+          hbox(g, x0, 288, x1 - x0, 44, C.sm, 'softmax, at every position');
+          const pv = LM_P[ck], mk = xs.filter((_, i) => pv[i] === 'm');
+          xs.forEach((x, i) => {
+            const p = pv[i]; if (p === 'm') return;
+            R(g, x - 13, 180, 26, 92, { rx: 2, fill: 'none', stroke: '#bbb', sw: 1.2 });
+            if (p) R(g, x - 13, 272 - Math.max(3, 92 * p), 26, Math.max(3, 92 * p), { rx: 2, fill: ck === 'blank' ? '#ccc' : C.acc, stroke: null });
+          });
+          if (mk.length) {
+            R(g, mk[0] - 20, 180, mk[mk.length - 1] - mk[0] + 40, 92, { rx: 6, fill: '#eee', stroke: '#bbb', sw: 1.2 });
+            T(g, (mk[0] + mk[mk.length - 1]) / 2, 234, 'label −100', 20, { a: 'middle', c: '#555', w: 600 });
+          }
+          T(g, (x0 + x1) / 2, 162, 'p(true next token)', 21, { a: 'middle', c: '#444' });
+          A(g, [[(x0 + x1) / 2, 140], [(x0 + x1) / 2, HEAD_TOP - 10]], { c: '#555', w: 2 });
+          box = [x0 - 10, 132, x1 - x0 + 20, 264];
+        }
+        const [bx, by, bw, bh] = box;
+        const io = grp(id + '_init', COL[T0]);
+        R(io, bx, by, bw, bh, { rx: 14, fill: 'none', stroke: '#444', sw: 3, dash: '10 7' });
+        T(io, bx + bw - 6, by + 26, 'random init', 18, { a: 'end', c: '#444', w: 600 });
+        R(grp(id + '_tr', COL[T0]), bx, by, bw, bh, { rx: 14, fill: 'none', stroke: C.acc, sw: 5, cls: 'pulse' });
+        return id;
+      }
+
+      /* ---------- loss box, targets, gradient ---------- */
+      const TARGETS = {
+        A: { blank: 'vs. the target', topic: 'vs. the true topic', none: 'measured only', pref: '✓ should score above ✗' },
+        B: { blank: 'vs. the target', next: 'vs. the true next tokens', reply: 'vs. the reply only', none: 'measured only', rl: 'RLHF reward, or DPO pairs' }
+      };
+      for (const T0 of ['A', 'B']) {
+        const gl = grp(`${T0}_loss`, COL[T0]);
+        R(gl, 100, Y.loss[0], 280, Y.loss[1] - Y.loss[0], { rx: 10, fill: '#fff4ec', stroke: C.acc, sw: 2.6 });
+        M(gl, RC, 50, 'Loss $\\mathcal{L}$', 30, { a: 'middle', w: 700 });
+        for (const [k, s] of Object.entries(TARGETS[T0])) T(grp(`${T0}_t_${k}`, COL[T0]), RC, 87, s, 21, { a: 'middle', c: '#7a3a1a' });
+        const gg = grp(`${T0}_grad`, COL[T0]);
+        L(gg, [[100, 60], [6, 60], [6, 630], [MX[0] - 4, 630]], { c: C.acc, w: 4, cls: 'gradflow' });
+        E('path', { d: 'M0 0 L-15 -8 L-15 8 Z', fill: C.acc, transform: `translate(${MX[0] - 2} 630)` }, gg);
+        T(gg, -2, 128, 'gradient', 20, { c: C.acc, w: 600, rot: -90 });
+      }
+
+      /* ---------- why a column is dimmed ---------- */
+      const WHY = { A5: '66M parameters: small enough already', A7: 'not a conversation', A10: 'scored with labels: next step' };
+      for (const [k, s] of Object.entries(WHY)) {
+        const g = grp('why_' + k, over), x = COLX[k[0]] + RC, y = TOPY + 640, w = tw(s, 26) + 44;
+        R(g, x - w / 2, y - 40, w, 60, { rx: 30, fill: '#fff', stroke: '#999', sw: 1.6 });
+        T(g, x, y - 1, s, 26, { a: 'middle', c: '#444', w: 600 });
+      }
+
+      /* ===================== EVALUATION PANELS AND INSETS ===================== */
+      /* x_<name>: panels in the band above the columns; SCENE.<name>: overlays (scenes.js). World coordinates. */
+      const x_ = name => grp('x_' + name, band);
+      {
+        const g = x_('ppl'), cx = COLX.B + RC;
+        T(g, cx, 88, 'SmolLM2-135M, “The cat sat on the mat”', 24, { a: 'middle', c: '#555' });
+        M(g, cx, 160, 'perplexity $= e^{4.33} \\approx 76$', 38, { a: 'middle', w: 600 });
+        A(g, [[cx, 196], [cx, TOPY - 46]], { c: '#555', w: 2 });
+      }
+      {
+        const g = x_('cm'), x0 = 150, y0 = 50, cw = 120, ch = 56;
+        T(g, x0 - 12, y0 - 12, 'predicted:', 24, { a: 'end', c: '#555', i: true });
+        T(g, x0 + cw / 2, y0 - 12, 'sci', 24, { a: 'middle', c: '#555' }); T(g, x0 + cw * 1.5, y0 - 12, 'other', 24, { a: 'middle', c: '#555' });
+        T(g, x0 - 12, y0 + 37, 'true sci', 24, { a: 'end', c: '#555' }); T(g, x0 - 12, y0 + ch + 37, 'true other', 24, { a: 'end', c: '#555' });
+        [['TP', '#d7efd9'], ['FN', '#f6d6d2'], ['FP', '#f6d6d2'], ['TN', '#eef5ee']].forEach(([n, f], k) => {
+          const x = x0 + (k & 1) * cw, y = y0 + (k >> 1) * ch;
+          R(g, x, y, cw, ch, { rx: 0, fill: f, sw: 1.4 }); T(g, x + cw / 2, y + 38, n, 26, { a: 'middle', w: 700 });
+        });
+        R(g, x0 - 4, y0 - 4, cw + 8, 2 * ch + 8, { rx: 6, fill: 'none', stroke: C.acc, sw: 3.5, dash: '9 5' });
+        R(g, x0 - 8, y0 - 8, 2 * cw + 16, ch + 16, { rx: 8, fill: 'none', stroke: C.blue, sw: 3.5, dash: '9 5' });
+        T(g, x0 + cw / 2, y0 + 2 * ch + 30, 'precision', 24, { a: 'middle', c: C.acc, w: 600 });
+        T(g, x0 + 2 * cw + 16, y0 + 37, 'recall', 24, { c: C.blue, w: 600 });
+        T(g, x0 + 2 * cw + 16, y0 + 2 * ch - 6, 'F1 = 0.87', 30, { w: 700 });
+      }
+      {
+        const g = x_('replies'), x0 = COLX.B, tx = x0 + 112;
+        T(g, x0, 28, 'What is the capital of France?', 25, { w: 700 });
+        const rows = [['base', ['whatisthecapitaloffrance? Smol smoal smosl…'], '#eee'], ['ours', ['…is Paris. The French government was established', 'on October 1289…'], '#fbd2a8'], ['instruct', ['The capital city of France is Paris.'], '#d7efd9']];
+        let y = 66;
+        rows.forEach(([n, ls, f]) => {
+          R(g, x0, y - 25, 104, 34, { rx: 6, fill: f, stroke: '#999', sw: 1.2 }); T(g, x0 + 52, y - 1, n, 24, { a: 'middle', w: 600 });
+          ls.forEach((t, i) => P(g, tx, y + i * 29, t, 24, { c: n === 'ours' && i === 1 ? C.red : '#222' }));
+          y += 29 * ls.length + 10;
+        });
+      }
+
+      const SCENE = {}, PLAY = {}, HOOK = {};
+      function sceneGroup(name) { return grp('s_' + name, over); }
+      function card(g, x, y, w, h, o) { o = o || {}; return R(g, x, y, w, h, { rx: 14, fill: o.fill || '#fff', stroke: o.stroke || '#c9c4ba', sw: o.sw || 1.6 }); }
+      /* ---- scenes.js ---- */
+/* Overlays drawn in world coordinates (see template.html): the loss-curve inset (step 9), the RLHF arrow
+   from the reward model to the chatbot's loss (step 12) and the second adapter (finale). */
+SCENE.curves = g => {
+  const y0 = TOPY + 170;
+  card(g, 30, y0, 1020, 440, { fill: '#fff', stroke: '#999', sw: 2 });
+  const kinds = [['healthy', s => 2 * Math.exp(-s / 40) + .4, s => 2 * Math.exp(-s / 40) + .55], ['underfitting', s => .9 * Math.exp(-s / 120) + 1.5, s => .9 * Math.exp(-s / 120) + 1.6], ['overfitting', s => 2 * Math.exp(-s / 40) + .25, s => 2 * Math.exp(-s / 40) + .4 + .006 * Math.max(0, s - 70)]];
+  kinds.forEach(([n, tr, va], k) => {
+    const px = 100 + k * 320, ax = axes(g, px, y0 + 80, 250, 230, { x0: 0, x1: 200, y0: 0, y1: 3, xl: 'step', xlo: 34 });
+    T(g, px + 125, y0 + 56, n, FS, { a: 'middle', w: 700 });
+    [[tr, '#333', null], [va, C.acc, '12 7']].forEach(([f, c, dash]) => { const pts = []; for (let s = 0; s <= 200; s += 4) pts.push([ax.X(s), ax.Y(Math.min(3, f(s)))]); L(g, pts, { c, w: 3.6, dash }); });
+  });
+  T(g, 84, y0 + 195, 'loss', FSS, { a: 'middle', c: '#444', rot: -90 });
+  [['training', '#333', null], ['validation', C.acc, '12 7']].forEach(([n, c, dash], i) => { L(g, [[330 + i * 240, y0 + 400], [390 + i * 240, y0 + 400]], { c, w: 4, dash }); T(g, 402 + i * 240, y0 + 408, n, FSS); });
+};
+
+SCENE.rlhf = g => {
+  const y1 = TOPY + 35;
+  A(g, [[340, TOPY + 290], [545, TOPY + 290], [545, y1], [COLX.B + 98, y1]], { c: C.acc, w: 4, s: 16 });
+  T(g, 556, y1 - 12, 'reward', FSS, { c: C.acc, w: 700 });
+};
+
+SCENE.adapters = g => {
+  const x = 1110, w = 210, mid = TOPY + (Y.model[0] + Y.model[1]) / 2;
+  T(g, x + w / 2, mid - 120, 'swap in:', FSS, { a: 'middle', c: '#444' });
+  [['Shakespeare', -90], ['Byron', 20]].forEach(([n, dy]) => {
+    const y = mid + dy;
+    R(g, x, y, w, 70, { rx: 10, fill: C.acc, stroke: '#8a2d06', sw: 1.6 });
+    T(g, x + w / 2, y + 32, n, 25, { a: 'middle', c: '#fff', w: 700 });
+    T(g, x + w / 2, y + 58, '6.3 MB adapter', 19, { a: 'middle', c: '#fff' });
+    L(g, [[x, y + 35], [COLX.B + MX[1] + 4, y + 35]], { c: C.acc, w: 3, dash: '8 6' });
+  });
+};
+
+      for (const name of Object.keys(SCENE)) SCENE[name](sceneGroup(name));
+
+      /* ===================== STEPS ===================== */
+      /* Each step lists only what changes; fold() turns these into complete states at load time.
+         A and B (the two tracks), strip, mem and disk are inherited; cur, cam, scene, x, dim and why are not.
+         A track: tag, m (model), tr (none/init/full/lora/qlora), h (head), c (chips), d (data), t (loss target), g (gradient). */
+      const BOXES = [['model', 'Model'], ['add', 'Add-ons'], ['train', 'Train what'], ['quant', 'Quantise'], ['data', 'Data'], ['sft', 'SFT'], ['hyper', 'Hyperparams'], ['eval', 'Evaluate']];
+      const MEM = {
+        w: { A: [.27, '0.27 GB'], B: [3.42, '3.42 GB'] },
+        tr: { A: [1.07, '≈ 1.1 GB'], B: [3.42, '≥ 3.4 GB', 27.4] },
+        q: { A: [1.07, '≈ 1.1 GB'], B: [2.24, '2.24 GB', 27.4] }
+      };
+      const DISK = { A: '268 MB', B: '6.3 MB' };
+      const DEF = [
+        /* 1 */ { A: { tag: 'cls', m: 'skel', d: 'blank', t: 'blank', g: true }, B: { tag: 'chat', m: 'skel', d: 'blank', t: 'blank', g: true } },
+        /* 2 */ { A: { m: 'enc', tr: 'none', c: 'blank', g: false }, B: { m: 'dec17', tr: 'none', c: 'blank', h: 'lm', g: false }, cur: 'model', strip: { model: ['DistilBERT', 'SmolLM2-1.7B'] }, mem: MEM.w },
+        /* 3 */ { A: { h: 'seq', tr: 'init' }, cur: 'add', strip: { add: ['6-topic head', 'none needed'] } },
+        /* 4 */ { A: { tr: 'full', g: true }, B: { tr: 'lora', g: true }, cur: 'train', strip: { train: ['full', 'LoRA, r = 8'] }, mem: MEM.tr, disk: DISK },
+        /* 5 */ { B: { tr: 'qlora' }, cur: 'quant', strip: { quant: ['none', '4-bit NF4'] }, mem: MEM.q, dim: ['A'], why: ['A5'] },
+        /* 6 */ { A: { d: 'split', c: 'tweet', t: 'topic' }, B: { d: 'conv', c: 'conv', t: 'next' }, cur: 'data', strip: { data: ['4,374 tweets', '9,500 chats'] } },
+        /* 7 */ { B: { c: 'convm', t: 'reply' }, cur: 'sft', strip: { sft: ['—', 'reply-only loss'] }, dim: ['A'], why: ['A7'] },
+        /* 8 */ { cur: 'hyper', strip: { hyper: ['η = 5×10⁻⁵', 'η = 2×10⁻⁴'] } },
+        /* 9 */ { cur: 'hyper', scene: 'curves', dim: ['A', 'B'] },
+        /* 10 */ { A: { g: false, t: 'none' }, B: { d: 'held', c: 'held', t: 'none', g: false }, cur: 'eval', strip: { eval: ['', 'perplexity'] }, x: ['ppl'], cam: 'E', dim: ['A'], why: ['A10'] },
+        /* 11 */ { B: { d: 'conv', c: 'convm' }, cur: 'eval', strip: { eval: ['F1 = 0.87', 'compare replies'] }, x: ['cm', 'replies'], cam: 'E' },
+        /* 12 */ { A: { tag: 'rm', m: 'rm', tr: 'full', h: 'scalar', c: 'pref', d: 'pref', t: 'pref', g: true }, B: { d: 'pref', c: 'pref', t: 'rl', g: true }, cur: 'eval', strip: { eval: ['F1 = 0.87', '+ preferences'] }, scene: 'rlhf' },
+        /* 13 */ { map: true }
+      ];
+      const BLANK = { A: {}, B: {}, strip: {}, mem: null, disk: null };
+      function fold(prev, d) {
+        return {
+          A: d.A === null ? null : { ...prev.A, ...(d.A || {}) }, B: d.B === null ? null : { ...prev.B, ...(d.B || {}) },
+          strip: { ...prev.strip, ...(d.strip || {}) }, mem: d.mem !== undefined ? d.mem : prev.mem, disk: d.disk !== undefined ? d.disk : prev.disk,
+          cur: d.cur || null, cam: d.cam || 'N', scene: d.scene || null, x: d.x || [], dim: d.dim || [], why: d.why || [], map: !!d.map
+        };
+      }
+      const STEPS = {};
+      DEF.reduce((prev, d, i) => (STEPS[String(i + 1)] = fold(prev, d)), BLANK);
+      const NSTEP = String(DEF.length);
+
+      /* the finale's configurations: each sets one track (the other is hidden) and the whole strip */
+      const SHAKES = { tag: 'gen', m: 'dec17', tr: 'qlora', h: 'lm', c: 'shakes', d: 'shakes', t: 'next', g: true };
+      const CFG = [
+        { t: 'Lab 6: tweet topics', k: 'DistilBERT with a new 6-topic head, fully fine-tuned on 4,374 labelled tweets for 2 epochs: F1 = 0.87 on the validation set. The trained model is a 268 MB file.',
+          A: { tag: 'cls', m: 'enc', tr: 'full', h: 'seq', c: 'tweet', d: 'split', t: 'topic', g: true },
+          strip: { model: 'DistilBERT', add: '6-topic head', train: 'full', quant: 'none', data: '4,374 tweets', sft: '—', hyper: 'η = 5×10⁻⁵', eval: 'F1 = 0.87' }, mem: [1.07, '≈ 1.1 GB'], disk: '268 MB' },
+        { t: 'Labs 7–8: Shakespeare on 1.7B', k: 'A 4-bit SmolLM2-1.7B with LoRA adapters (r = 8) trained on tiny-shakespeare: 300 steps at η = 5×10⁻⁴. Peak memory 2.36 GB, against about 27 GB to fine-tune in full.',
+          B: SHAKES, strip: { model: 'SmolLM2-1.7B', add: 'none needed', train: 'LoRA, r = 8', quant: '4-bit NF4', data: 'tiny-shakespeare', sft: '—', hyper: 'η = 5×10⁻⁴', eval: 'loss, perplexity' }, mem: [2.36, '2.36 GB', 27.4], disk: '6.3 MB' },
+        { t: 'Lab 9: chat assistant', k: 'The same 4-bit base and LoRA, trained on 9,500 no_robots conversations with a chat template and the loss on replies only. Batch 4 × 2, gradient checkpointing, η = 2×10⁻⁴, 300 steps. Peak memory 2.24 GB.',
+          B: { tag: 'chat', m: 'dec17', tr: 'qlora', h: 'lm', c: 'convm', d: 'conv', t: 'reply', g: true },
+          strip: { model: 'SmolLM2-1.7B', add: 'none needed', train: 'LoRA, r = 8', quant: '4-bit NF4', data: '9,500 chats', sft: 'reply-only loss', hyper: 'η = 2×10⁻⁴', eval: 'compare replies' }, mem: [2.24, '2.24 GB', 27.4], disk: '6.3 MB' },
+        { t: 'Lab 8: many adapters, one base', k: 'One 4-bit base model serves a Shakespeare adapter and a Byron adapter: 1.12 GB in memory, against 6.8 GB for two 16-bit copies (hatched).',
+          B: SHAKES, scene: 'adapters', cam: 'W1', strip: { model: 'SmolLM2-1.7B', add: 'none needed', train: 'LoRA, r = 8', quant: '4-bit NF4', data: 'two corpora', sft: '—', hyper: 'η = 5×10⁻⁴', eval: 'loss, perplexity' }, mem: [1.12, '1.12 GB', 6.8], disk: '2 × 6.3 MB' },
+        { t: 'Reward model and DPO', beyond: 1, k: 'Preference pairs train a reward model with a scalar head, which scores the chatbot’s replies for RLHF; or DPO trains the chatbot on the pairs directly. Illustrative.',
+          AB: '12', strip: { model: 'pretrained LMs', add: 'scalar head', train: 'full or LoRA', quant: 'optional', data: 'preference pairs', sft: 'after SFT', hyper: '—', eval: 'human preference' } }
+      ];
+      const CFG_ST = CFG.map(c => {
+        const base = c.AB ? STEPS[c.AB] : { A: null, B: null };
+        const two = v => c.AB ? [v, v] : c.A ? [v, ''] : ['', v];
+        const strip = {}; for (const [k] of BOXES) strip[k] = two(c.strip[k]);
+        const mem = c.mem ? (c.A ? { A: c.mem } : { B: c.mem }) : null, disk = c.disk ? (c.A ? { A: c.disk } : { B: c.disk }) : null;
+        return { A: c.A || base.A, B: c.B || base.B, strip, mem, disk, cur: null, cam: c.cam || (c.AB ? 'N' : c.A ? 'A1' : 'B1'), scene: c.scene || base.scene || null, x: [], dim: [], why: [], map: true, cfg: c };
+      });
+
+      /* visible groups for a state */
+      function groupsFor(st) {
+        const on = new Set();
+        for (const T0 of ['A', 'B']) {
+          const r = st[T0]; if (!r || !r.m) continue;
+          if (r.tag) on.add(`tag_${T0}_${r.tag}`);
+          if (r.m === 'skel') on.add(`${T0}_m_skel`);
+          else {
+            on.add(`${T0}_m_${r.m}_${r.tr === 'lora' ? 'grey' : r.tr === 'qlora' ? 'q' : 'colour'}`);
+            if (r.tr === 'full') on.add(`${T0}_ol`);
+            if (r.tr === 'lora' || r.tr === 'qlora') { on.add(`${T0}_lk`); on.add(`${T0}_tab`); }
+            if (r.tr === 'qlora') on.add(`${T0}_qb`);
+          }
+          on.add(`${T0}_loss`);
+          if (r.d) on.add(`${T0}_d_${r.d}`);
+          if (r.c) on.add(`${T0}_c_${r.c}`);
+          if (r.h && r.c) {
+            const id = makeHead(T0, r.h, r.c); on.add(id);
+            if (r.tr === 'init') on.add(id + '_init');
+            if (r.tr === 'full') on.add(id + '_tr');
+          }
+          if (r.t) on.add(`${T0}_t_${r.t}`);
+          if (r.g) on.add(`${T0}_grad`);
+        }
+        st.why.forEach(k => on.add('why_' + k));
+        st.x.forEach(k => on.add('x_' + k));
+        if (st.scene) on.add('s_' + st.scene);
+        return on;
+      }
+      for (const k in STEPS) STEPS[k].on = [...groupsFor(STEPS[k])];
+      CFG_ST.forEach(s => s.on = [...groupsFor(s)]);
+
+      /* ===================== STRIP ===================== */
+      const strip = document.getElementById('strip'), SB = {};
+      BOXES.forEach(([k, name]) => {
+        const b = document.createElement('div'); b.className = 'box todo';
+        b.innerHTML = `<div class="h">${name}</div><div class="v a"></div><div class="v b"></div>`;
+        strip.appendChild(b); SB[k] = { box: b, a: b.children[1], b: b.children[2] };
+      });
+      const gauge = document.createElement('div'); gauge.className = 'box gauge';
+      gauge.innerHTML = '<div class="h">GPU memory<span>┆ 8 GB</span></div>' + ['a', 'b'].map(t => `<div class="mb ${t}"><span class="tr"><i class="ghost"></i><i class="fill"></i><i class="gpu"></i></span><span class="mv"></span></div>`).join('');
+      const disk = document.createElement('div'); disk.className = 'box disk';
+      disk.innerHTML = '<div class="h">On disk</div><div class="v a"></div><div class="v b"></div>';
+      strip.append(gauge, disk);
+      const MB = { A: gauge.querySelector('.mb.a'), B: gauge.querySelector('.mb.b') }, DK = { A: disk.children[1], B: disk.children[2] };
+      let stripPrev = null;
+      function setV(el, v, flash) {
+        const s = v || '';
+        if (flash && s && el.textContent !== s) { el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
+        el.textContent = s; el.classList.toggle('off', !s || s === '—');
+      }
+      function renderStrip(st, instant) {
+        const fl = !instant && !!stripPrev, SC = 10;
+        BOXES.forEach(([k]) => {
+          const v = st.strip[k], s = SB[k];
+          s.box.classList.toggle('cur', st.cur === k);
+          s.box.classList.toggle('todo', !v && st.cur !== k);
+          setV(s.a, v && v[0], fl); setV(s.b, v && v[1], fl);
+        });
+        for (const T0 of ['A', 'B']) {
+          const m = st.mem && st.mem[T0], el = MB[T0];
+          el.querySelector('.fill').style.width = (m ? Math.min(m[0], SC) / SC * 100 : 0) + '%';
+          el.querySelector('.ghost').style.width = (m && m[2] ? Math.min(m[2], SC) / SC * 100 : 0) + '%';
+          el.classList.toggle('over', !!(m && m[2] > SC));
+          el.querySelector('.mv').textContent = m ? m[1] : '';
+          setV(DK[T0], st.disk && st.disk[T0], fl);
+        }
+        stripPrev = st;
+      }
+
+      /* ===================== CAMERA ===================== */
+      const CAMS = { N: { x: -20, y: TOPY - 50, w: 1120, h: 1070 }, E: { x: -20, y: -6, w: 1120, h: 1276 }, A1: { x: -20, y: TOPY - 50, w: 520, h: 1070 }, B1: { x: 580, y: TOPY - 50, w: 520, h: 1070 }, W1: { x: 580, y: TOPY - 50, w: 760, h: 1070 } };
+      let cam = null, anim = 0, curKey = null;
+      function panel() { const b = svg.getBoundingClientRect(); return [Math.max(1, b.width), Math.max(1, b.height)]; }
+      function camRect(spec) { return typeof spec === 'string' ? CAMS[spec] : spec; }
+      function fit(r, pad) { const [W, H] = panel(); return { cx: r.x + r.w / 2, cy: r.y + r.h / 2, w: Math.max(r.w * pad, r.h * pad * W / H) }; }
+      const near = (a, b) => Math.abs(a.cx - b.cx) < 0.02 * b.w && Math.abs(a.cy - b.cy) < 0.02 * b.w && Math.abs(Math.log(a.w / b.w)) < 0.05;
+      function setVB(c) { const [W, H] = panel(), h = c.w * H / W; svg.setAttribute('viewBox', `${c.cx - c.w / 2} ${c.cy - h / 2} ${c.w} ${h}`); }
+      function zoomInterp(a, b) {
+        const rho = Math.SQRT2, rho2 = 2, rho4 = 4, ux0 = a.cx, uy0 = a.cy, w0 = a.w, ux1 = b.cx, uy1 = b.cy, w1 = b.w, dx = ux1 - ux0, dy = uy1 - uy0, d2 = dx * dx + dy * dy;
+        let S, f;
+        if (d2 < 1e-9) { S = Math.log(w1 / w0) / rho; f = t => ({ cx: ux0 + t * dx, cy: uy0 + t * dy, w: w0 * Math.exp(rho * t * S) }); }
+        else {
+          const d1 = Math.sqrt(d2), b0 = (w1 * w1 - w0 * w0 + rho4 * d2) / (2 * w0 * rho2 * d1), b1 = (w1 * w1 - w0 * w0 - rho4 * d2) / (2 * w1 * rho2 * d1),
+            r0 = Math.log(Math.sqrt(b0 * b0 + 1) - b0), r1 = Math.log(Math.sqrt(b1 * b1 + 1) - b1); S = (r1 - r0) / rho;
+          f = t => { const s = t * S, u = w0 / (rho2 * d1) * (Math.cosh(r0) * Math.tanh(rho * s + r0) - Math.sinh(r0)); return { cx: ux0 + u * dx, cy: uy0 + u * dy, w: w0 * Math.cosh(r0) / Math.cosh(rho * s + r0) }; };
+        }
+        f.dur = Math.min(2000, Math.max(800, Math.abs(S) * 800));
+        return f;
+      }
+      const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      let seq = 0;
+      const wait = ms => new Promise(r => setTimeout(r, ms));
+      function moveCam(target) {
+        return new Promise(res => {
+          cancelAnimationFrame(anim);
+          if (near(cam, target)) { cam = target; setVB(cam); res(); return; }
+          const f = zoomInterp(cam, target), t0 = performance.now(), my = seq;
+          const tick = now => {
+            if (my !== seq) { res(); return; }
+            const t = Math.min(1, (now - t0) / f.dur);
+            cam = t >= 1 ? target : f(ease(t)); setVB(cam);
+            if (t < 1) anim = requestAnimationFrame(tick); else res();
+          };
+          anim = requestAnimationFrame(tick);
+        });
+      }
+
+      /* ===================== PLAYS ===================== */
+      let playRAF = 0;
+      function stopPlay() { cancelAnimationFrame(playRAF); playRAF = 0; }
+      function startPlay(name, my) {
+        stopPlay(); const P = PLAY[name]; if (!P) return;
+        if (STATIC) { P.frame(1); return; }
+        const t0 = performance.now();
+        const tick = now => {
+          if (my !== seq) return;
+          const e = Math.max(0, now - t0), t = P.loop ? (e % P.dur) / P.dur : Math.min(1, e / P.dur);
+          P.frame(t);
+          if (P.loop || t < 1) playRAF = requestAnimationFrame(tick);
+        };
+        P.frame(0); playRAF = requestAnimationFrame(tick);
+      }
+
+      /* ===================== APPLY ===================== */
+      const badge = document.getElementById('badge');
+      const shown = {};
+      let curState = null;
+      function setOn(ids, on) { ids.forEach(id => { const v = on.has(id) ? 1 : 0; if (shown[id] !== v) { G[id].style.opacity = v; shown[id] = v; } }); }
+      async function transition(st, instant) {
+        const my = ++seq, on = new Set(st.on), ids = Object.keys(G);
+        curState = st;
+        renderStrip(st, instant || STATIC);
+        for (const T0 of ['A', 'B']) COL[T0].style.opacity = st.dim.includes(T0) ? 0.2 : 1;
+        const tgt = fit(camRect(st.cam), 1.04);
+        stopPlay();
+        if (instant || STATIC || !cam) {
+          if (HOOK[st.scene]) HOOK[st.scene](st);
+          setOn(ids, on); cancelAnimationFrame(anim); cam = tgt; setVB(cam);
+          if (st.scene && PLAY[st.scene]) startPlay(st.scene, my);
+          return;
+        }
+        const leaving = ids.filter(id => shown[id] === 1 && !on.has(id));
+        if (leaving.length) { setOn(leaving, on); await wait(330); if (my !== seq) return; }
+        if (st.scene && PLAY[st.scene]) PLAY[st.scene].frame(0);
+        if (HOOK[st.scene]) HOOK[st.scene](st);
+        setOn(ids, on);
+        moveCam(tgt);
+        if (st.scene && PLAY[st.scene]) startPlay(st.scene, my);
+      }
+      const steps = [...document.querySelectorAll('.step')];
+      function apply(key, instant) {
+        const st = STEPS[key]; if (!st) return;
+        curKey = key;
+        if (st.map) { const i = cfgIndexFromScroll(); transition(i >= 0 ? CFG_ST[i] : st, instant); markCfg(i); }
+        else { transition(st, instant); markCfg(-1); }
+        const sec = document.querySelector(`.step[data-step="${key}"]`), box = BOXES.find(b => b[0] === st.cur);
+        badge.innerHTML = `<b>${steps.indexOf(sec) + 1}</b> / ${steps.length}` + (box ? ` · ${box[1]}` : '');
+      }
+
+      /* ===================== FINALE LIST ===================== */
+      const list = document.getElementById('cfgs');
+      const cfgEls = CFG.map((c, i) => {
+        const li = document.createElement('li'); li.className = 'cfg' + (c.beyond ? ' beyond' : ''); li.dataset.i = i;
+        li.innerHTML = `<b>${c.t}</b><span class="k">${c.k}</span>`;
+        list.appendChild(li); return li;
+      });
+      let hoverCfg = -1, curCfg = -1;
+      function readLine() {
+        if (matchMedia('(max-width:820px)').matches) { const fh = document.getElementById('fig').getBoundingClientRect().height; return fh + (innerHeight - fh) * 0.3; }
+        return innerHeight * 0.42;
+      }
+      function cfgIndexFromScroll() { const rl = readLine(); let a = -1; cfgEls.forEach((el, i) => { if (el.getBoundingClientRect().top <= rl + 1) a = i; }); return a; }
+      function markCfg(i) { curCfg = i; cfgEls.forEach((el, j) => el.classList.toggle('on', j === i)); }
+      function showCfg(i) { if (i === curCfg) return; markCfg(i); transition(i >= 0 ? CFG_ST[i] : STEPS[NSTEP]); }
+      cfgEls.forEach((el, i) => {
+        el.addEventListener('mouseenter', () => { if (curKey === NSTEP) { hoverCfg = i; showCfg(i); } });
+        el.addEventListener('mouseleave', () => { hoverCfg = -1; if (curKey === NSTEP) showCfg(cfgIndexFromScroll()); });
+        el.addEventListener('click', () => scrollToEl(el));
+      });
+
+      /* ===================== SCROLL & KEYS ===================== */
+      function activeStep() { const rl = readLine(); let a = steps[0]; for (const s of steps) { if (s.getBoundingClientRect().top <= rl + 1) a = s; } return a; }
+      let ticking = false;
+      function onScroll() {
+        if (ticking) return; ticking = true;
+        requestAnimationFrame(() => {
+          ticking = false;
+          const a = activeStep();
+          steps.forEach(s => s.classList.toggle('active', s === a));
+          if (a.dataset.step !== curKey) apply(a.dataset.step);
+          else if (curKey === NSTEP && hoverCfg < 0) showCfg(cfgIndexFromScroll());
+        });
+      }
+      addEventListener('scroll', onScroll, { passive: true });
+      addEventListener('resize', () => { if (curState) { cancelAnimationFrame(anim); cam = fit(camRect(curState.cam), 1.04); setVB(cam); } });
+      function scrollToEl(el, instant) {
+        const y = el.getBoundingClientRect().top + scrollY - readLine() + 2;
+        scrollTo({ top: Math.max(0, y), behavior: instant || STATIC ? 'auto' : 'smooth' });
+      }
+      addEventListener('keydown', e => {
+        if (e.target.closest && e.target.closest('input,textarea')) return;
+        const down = ['ArrowDown', 'PageDown', 'ArrowRight'].includes(e.key) || (e.key === ' ' && !e.shiftKey);
+        const up = ['ArrowUp', 'PageUp', 'ArrowLeft'].includes(e.key) || (e.key === ' ' && e.shiftKey);
+        if (!down && !up) return;
+        e.preventDefault();
+        const rl = readLine();
+        const all = [...steps, ...cfgEls].map(el => ({ el, t: el.getBoundingClientRect().top })).sort((a, b) => a.t - b.t);
+        const tgt = down ? all.find(s => s.t > rl + 8) : [...all].reverse().find(s => s.t < rl - 8);
+        if (tgt) scrollToEl(tgt.el);
+        else if (up) scrollTo({ top: 0, behavior: STATIC ? 'auto' : 'smooth' });
+      });
+
+      /* ---------- start ---------- */
+      steps.forEach((s, i) => { s.querySelector('.n').textContent = i + 1; });
+      document.querySelectorAll('#text header p, .step ul, .step ol:not(#cfgs)').forEach(el => { el.innerHTML = texHTML(el.innerHTML); });
+      const m = location.hash.match(/step=(\w+)/), cm = location.hash.match(/cfg=(\d+)/);
+      const first = m && document.querySelector(`.step[data-step="${m[1]}"]`);
+      if (SHOT && cm) { curKey = NSTEP; markCfg(+cm[1]); transition(CFG_ST[+cm[1]], true); }
+      else apply(first ? first.dataset.step : '1', true);
+      steps.forEach(s => s.classList.toggle('active', s === (first || steps[0])));
+      if (first && !SHOT) requestAnimationFrame(() => { scrollToEl(first, true); requestAnimationFrame(() => { apply(first.dataset.step, true); onScroll(); }); });
+      window.__T = {
+        apply, STEPS, CFG_ST, G, PLAY, get key() { return curKey }, get state() { return curState }, get cfg() { return curCfg }
+      };
+    }
+    /* chip widths are measured, so wait (briefly) for the web font */
+    Promise.race([
+      document.fonts ? Promise.all(['400 20px "IBM Plex Sans"', '600 20px "IBM Plex Sans"', '700 20px "IBM Plex Sans"'].map(f => document.fonts.load(f))) : Promise.resolve(),
+      new Promise(r => setTimeout(r, 2500))
+    ]).then(main, main);
+  </script>
+</body>
+
+</html>

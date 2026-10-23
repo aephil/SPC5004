@@ -12,9 +12,11 @@ project:
     - lec07.qmd 
     - lec08.qmd 
     - lec09.qmd
+    - lec10.qmd
   resources:
     - /index.html
     - /transformer.html
+    - /finetuning.html
 
 # Re-execute code only when a deck's .qmd changes; results are kept in
 # _freeze/ and shared by both profiles.
