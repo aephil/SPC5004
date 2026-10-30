@@ -1,0 +1,77 @@
+---
+title: "Variational autoencoders"
+lecture-number: 12
+date: 2026-10-30
+---
+
+## Tuesday's lab
+
+Last time we asked what the decoder makes of a point that no image was encoded to. 
+
+:::{.incremental}
+* Encoded digits fill only parts of latent space, in uneven clumps. In between are **holes** that decode to nonsense.
+* Nothing in training asked the decoder to make sense of points between or outside the clumps.
+* A bigger latent space didn't help: more room just meant more holes.
+:::
+
+. . .
+
+So we can't generate new images by decoding a random $z$, at least not yet.
+
+## From a point to a distribution
+
+A plain autoencoder encodes each input to a single latent point. A **variational autoencoder (VAE)** instead encodes each input to a *distribution* over latent space. 
+
+We will make this a multidimensional Gaussian distribution, characterised by its mean and variance. Each of these has the dimensionality of the latent space.
+
+:::{.incremental}
+* The encoder outputs $\mu$ and $\sigma$ rather than a single vector.
+* During training, we sample a latent vector from $\mathcal{N}(\mu, \sigma^2)$, then decode that sample as before.
+* Every input now occupies a little cloud of latent space, not just a point. So nearby points must *also* decode sensibly, since they might get sampled too.
+:::
+
+## Keeping the latent space tidy {.slightly-smaller}
+
+We also want every encoded distribution to stay close to a standard normal $\mathcal{N}(0, 1)$, rather than drifting off to wherever is convenient for reconstruction alone.
+
+**Kullback–Leibler (KL) divergence** measures how different two probability distributions are. We will add the following term to the loss, which represents the KL divergence between the actual distribution and the standard normal:
+
+$$
+\mathcal{L}_\mathrm{KL} = -\tfrac12\sum_i\big(1 + \log(\sigma_i^2) - \mu_i^2 - \sigma_i^2\big)
+$$
+
+:::{.incremental}
+* KL divergence is a non-negative number, zero only when the two distributions match exactly.
+* Adding a KL term to the loss penalises the encoder for straying too far from $\mathcal{N}(0, 1)$, which keeps latent space densely and smoothly filled rather than full of holes.
+:::
+
+## The reparameterisation trick
+
+Unfortunately, *sampling* from $\mathcal{N}(\mu, \sigma^2)$ isn't a differentiable operation, so gradients can't flow back through it to update the encoder.
+
+We solve this by rewriting the sample as a deterministic function of $\mu$, $\sigma$, and some fixed random noise $\epsilon \sim \mathcal{N}(0,1)$:
+
+$$z = \mu + \sigma \cdot \epsilon$$
+
+. . .
+
+Now the randomness lives entirely in $\epsilon$, which doesn't depend on the model, so gradients can flow through $\mu$ and $\sigma$ exactly as normal.
+
+## The VAE loss
+
+$$\mathcal{L} = \underbrace{\text{reconstruction error}}_{\text{as before}} + \underbrace{\text{KL divergence}}_{\text{keeps latent space tidy}}$$
+
+:::{.incremental}
+* Too much weight on reconstruction: latent space drifts back towards the plain-autoencoder problem — good reconstructions, but holes that decode to garbage.
+* Too much weight on the KL term: every input gets squeezed towards the same generic $\mathcal{N}(0,1)$ latent, and reconstructions get blurry — the model would rather blend everything together than risk being penalised for spreading out.
+:::
+
+## Why this is worth it
+
+A plain autoencoder's latent space can have holes: gaps between real data points that decode to nonsense, because nothing during training told the model to make them behave.
+
+The VAE's distributional encoding directly targets this: every point *and its neighbourhood* was pushed to decode sensibly, and the whole space was pulled towards one shared, known distribution.
+
+. . .
+
+We can therefore sample a fresh latent vector from $\mathcal{N}(0,1)$ — one that never came from a real input — and expect the decoder to *generate* something coherent from it.
