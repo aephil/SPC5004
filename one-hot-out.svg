@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 1021 292" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:1.5;">
+    <g id="Artboard1" transform="matrix(0.982676,0,0,1,-240.755534,-1293.662814)">
+        <rect x="245" y="1293.663" width="1039" height="291.337" style="fill:none;"/>
+        <g transform="matrix(2.024505,0,0,1,-587.996534,-1.408905)">
+            <rect x="531.3" y="1485" width="45.7" height="60" style="fill:rgb(183,189,255);"/>
+        </g>
+        <g transform="matrix(1.555955,0,0,1,-215.664743,1.499428)">
+            <rect x="531.3" y="1485" width="45.7" height="60" style="fill:rgb(255,183,183);fill-opacity:0.6;"/>
+        </g>
+        <g transform="matrix(2.024505,0,0,1,-700.376338,1.499428)">
+            <rect x="531.3" y="1485" width="45.7" height="60" style="fill:rgb(183,189,255);fill-opacity:0.2;"/>
+        </g>
+        <g transform="matrix(1.555955,0,0,1,-553.246016,1.499428)">
+            <rect x="531.3" y="1485" width="45.7" height="60" style="fill:rgb(255,183,183);"/>
+        </g>
+        <g transform="matrix(1.555955,0,0,1,246.339175,1.499428)">
+            <rect x="531.3" y="1485" width="45.7" height="60" style="fill:rgb(255,183,183);fill-opacity:0.2;"/>
+        </g>
+        <g transform="matrix(0.878782,-0.504251,0.513141,0.863557,-310.496415,1080.641964)">
+            <g transform="matrix(50,0,0,50,374.304529,613.51829)">
+            </g>
+            <text x="344.305px" y="613.518px" style="font-family:'IBMPlexMono', 'IBM Plex Mono', monospace;font-size:50px;">a</text>
+        </g>
+        <g transform="matrix(0.878782,-0.504251,0.513141,0.863557,-200.614421,1080.641964)">
+            <g transform="matrix(50,0,0,50,584.304529,613.51829)">
+            </g>
+            <text x="344.305px" y="613.518px" style="font-family:'IBMPlexMono', 'IBM Plex Mono', monospace;font-size:50px;">aardvark</text>
+        </g>
+        <g transform="matrix(0.878782,-0.504251,0.513141,0.863557,-272.88435,739.167214)">
+            <g transform="matrix(50,0,0,50,511.569858,1001.51028)">
+            </g>
+            <text x="331.57px" y="1001.51px" style="font-family:'IBMPlexMono', 'IBM Plex Mono', monospace;font-size:50px;">abacus</text>
+        </g>
+        <g transform="matrix(0.878782,-0.504251,0.513141,0.863557,-269.380653,641.360929)">
+            <g transform="matrix(50,0,0,50,521.54022,1138.109655)">
+            </g>
+            <text x="371.54px" y="1138.11px" style="font-family:'IBMPlexMono', 'IBM Plex Mono', monospace;font-size:50px;">aback</text>
+        </g>
+        <g transform="matrix(0.878782,-0.504251,0.513141,0.863557,95.912307,528.2615)">
+            <g transform="matrix(50,0,0,50,603.431062,1279.665691)">
+            </g>
+            <text x="393.431px" y="1279.666px" style="font-family:'IBMPlexMono', 'IBM Plex Mono', monospace;font-size:50px;">zymurgy</text>
+        </g>
+        <g transform="matrix(1.01763,0,0,1,6.560725,2.091095)">
+            <path d="M288,1465L250,1465L250,1558L288,1558" style="fill:none;stroke:black;stroke-width:4.17px;"/>
+        </g>
+        <g transform="matrix(-1.01763,0,0,1,1416.841615,2.091095)">
+            <path d="M288,1465L250,1465L250,1558L288,1558" style="fill:none;stroke:black;stroke-width:4.17px;"/>
+        </g>
+        <g transform="matrix(1.01763,0,0,1,-48.077375,0.662814)">
+            <g transform="matrix(41.666667,0,0,41.666667,388.891531,1530.378281)">
+            </g>
+            <text x="313.892px" y="1530.378px" style="font-family:'IBMPlexMono', 'IBM Plex Mono', monospace;font-size:41.667px;">2.3</text>
+        </g>
+        <g transform="matrix(1.01763,0,0,1,49.245748,1.162814)">
+            <g transform="matrix(41.666667,0,0,41.666667,413.891531,1530.378281)">
+            </g>
+            <text x="313.892px" y="1530.378px" style="font-family:'IBMPlexMono', 'IBM Plex Mono', monospace;font-size:41.667px;">-0.2</text>
+        </g>
+        <g transform="matrix(1.01763,0,0,1,161.625551,0.537814)">
+            <g transform="matrix(41.666667,0,0,41.666667,413.891531,1530.378281)">
+            </g>
+            <text x="313.892px" y="1530.378px" style="font-family:'IBMPlexMono', 'IBM Plex Mono', monospace;font-size:41.667px;">-6.2</text>
+        </g>
+        <g transform="matrix(1.01763,0,0,1,289.21468,0.662814)">
+            <g transform="matrix(41.666667,0,0,41.666667,388.891531,1530.378281)">
+            </g>
+            <text x="313.892px" y="1530.378px" style="font-family:'IBMPlexMono', 'IBM Plex Mono', monospace;font-size:41.667px;">1.4</text>
+        </g>
+        <g transform="matrix(1.01763,0,0,1,529.375307,0.212814)">
+            <g transform="matrix(50,0,0,50,403.891531,1530.378281)">
+            </g>
+            <text x="313.892px" y="1530.378px" style="font-family:'IBMPlexMono', 'IBM Plex Mono', monospace;font-size:50px;">...</text>
+        </g>
+        <g transform="matrix(1.01763,0,0,1,751.218598,0.662814)">
+            <g transform="matrix(41.666667,0,0,41.666667,388.891531,1530.378281)">
+            </g>
+            <text x="313.892px" y="1530.378px" style="font-family:'IBMPlexMono', 'IBM Plex Mono', monospace;font-size:41.667px;">0.3</text>
+        </g>
+    </g>
+</svg>
