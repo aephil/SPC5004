@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 2068 1563" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:1.5;">
+    <g id="Artboard1" transform="matrix(0.833489,0,0,0.445533,0,0)">
+        <rect x="0" y="0" width="2480.315" height="3507.874" style="fill:none;"/>
+        <g transform="matrix(0.882279,0,0,2.591829,-240.998782,-369.927588)">
+            <path d="M1155.848,629.928C1173.57,634.922 1185,646.102 1185,658.444L1185,985.556C1185,997.898 1173.57,1009.078 1155.848,1014.072C1033.812,1048.458 562.075,1181.381 383.778,1231.62C368.633,1235.888 351.128,1234.991 337.249,1229.237C323.371,1223.483 315,1213.651 315,1203.105C315,1052.754 315,591.246 315,440.895C315,430.349 323.371,420.517 337.249,414.763C351.128,409.009 368.633,408.112 383.778,412.38C562.075,462.619 1033.812,595.542 1155.848,629.928Z" style="fill:rgb(115,255,159);stroke:black;stroke-width:4.3px;"/>
+        </g>
+        <g transform="matrix(1.199776,0,0,2.244502,-263.310368,-111.29377)">
+            <g transform="matrix(75,0,0,75,725.786247,861.270886)">
+            </g>
+            <text x="410.786px" y="861.271px" style="font-family:'IBMPlexMono', 'IBM Plex Mono', monospace;font-size:75px;">Encoder</text>
+        </g>
+        <g transform="matrix(-0.882279,0,0,2.591829,2727.312623,-369.927588)">
+            <path d="M1155.848,629.928C1173.57,634.922 1185,646.102 1185,658.444L1185,985.556C1185,997.898 1173.57,1009.078 1155.848,1014.072C1033.812,1048.458 562.075,1181.381 383.778,1231.62C368.633,1235.888 351.128,1234.991 337.249,1229.237C323.371,1223.483 315,1213.651 315,1203.105C315,1052.754 315,591.246 315,440.895C315,430.349 323.371,420.517 337.249,414.763C351.128,409.009 368.633,408.112 383.778,412.38C562.075,462.619 1033.812,595.542 1155.848,629.928Z" style="fill:rgb(254,183,255);stroke:black;stroke-width:4.3px;"/>
+        </g>
+        <g transform="matrix(1.199776,0,0,2.244502,1381.357627,-111.29377)">
+            <g transform="matrix(75,0,0,75,725.786247,861.270886)">
+            </g>
+            <text x="410.786px" y="861.271px" style="font-family:'IBMPlexMono', 'IBM Plex Mono', monospace;font-size:75px;">Decoder</text>
+        </g>
+        <g transform="matrix(1.199776,0,0,2.244502,-551.519915,-558.881024)">
+            <g transform="matrix(75,0,0,75,1124.968201,343.364531)">
+            </g>
+            <text x="494.968px" y="343.365px" style="font-family:'IBMPlexMono', 'IBM Plex Mono', monospace;font-size:75px;">I am a student</text>
+        </g>
+        <g transform="matrix(1.199776,0,0,1.827666,-392.326766,-637.727176)">
+            <g transform="matrix(1,-0,-0,1.22807,327,348.929825)">
+                <path d="M369.407,335.5L350.657,373L331.907,335.5L350.657,354.25L369.407,335.5Z"/>
+                <path d="M350.657,145L350.657,354.25" style="fill:none;stroke:black;stroke-width:4.17px;"/>
+            </g>
+        </g>
+        <g transform="matrix(0,-2.244502,2.658361,0,-530.209765,3281.559278)">
+            <g transform="matrix(0,0.451322,-1,0,1462.043307,199.44988)">
+                <path d="M1308.657,765.636L1346.157,784.386L1308.657,803.136L1327.407,784.386L1308.657,765.636Z"/>
+                <path d="M725.757,784.386L1327.407,784.386" style="fill:none;stroke:black;stroke-width:4.17px;"/>
+            </g>
+        </g>
+        <g transform="matrix(1.199776,0,0,2.244502,1282.877664,-557.534322)">
+            <g transform="matrix(75,0,0,75,809.968201,343.364531)">
+            </g>
+            <text x="494.968px" y="343.365px" style="font-family:'IBMPlexMono', 'IBM Plex Mono', monospace;font-size:75px;">Je suis</text>
+        </g>
+        <g transform="matrix(1.199776,0,0,1.827666,1252.566188,-637.727176)">
+            <g transform="matrix(1,-0,-0,1.22807,-1044,348.929825)">
+                <path d="M1740.407,335.5L1721.657,373L1702.907,335.5L1721.657,354.25L1740.407,335.5Z"/>
+                <path d="M1721.657,145L1721.657,354.25" style="fill:none;stroke:black;stroke-width:4.17px;"/>
+            </g>
+        </g>
+        <g transform="matrix(1.199776,0,0,2.244502,1256.107661,2682.494594)">
+            <g transform="matrix(75,0,0,75,854.968201,343.364531)">
+            </g>
+            <text x="494.968px" y="343.365px" style="font-family:'IBMPlexMono', 'IBM Plex Mono', monospace;font-size:75px;">étudiant</text>
+        </g>
+        <g transform="matrix(1.199776,0,0,1.827666,1252.566188,1706.745401)">
+            <g transform="matrix(1,-0,-0,1.22807,-1044,-933.838788)">
+                <path d="M1740.407,1380.04L1721.657,1417.54L1702.907,1380.04L1721.657,1398.79L1740.407,1380.04Z"/>
+                <path d="M1721.657,1189.54L1721.657,1398.79" style="fill:none;stroke:black;stroke-width:4.17px;"/>
+            </g>
+        </g>
+        <g transform="matrix(1.199776,0,0,2.244502,-455.893853,-960.563008)">
+            <g transform="matrix(75,0,0,75,1732.214941,1135.89845)">
+            </g>
+            <text x="1102.215px" y="1135.898px" style="font-family:'IBMPlexMono-Italic', 'IBM Plex Mono', monospace;font-style:italic;font-size:75px;">Representation</text>
+        </g>
+    </g>
+</svg>

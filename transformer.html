@@ -1,0 +1,1570 @@
+<!doctype html>
+<html lang="en-GB">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Transformers, Top Down</title>
+  <meta name="description"
+    content="A scroll-driven walk through the transformer architecture, from encoder and decoder monoliths down to single attention heads, ending with the real MarianMT module tree.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.21/katex.min.css">
+  <style>
+    :root {
+      --bg: #fff;
+      --ink: #000;
+      --muted: oklch(50% 5% 0);
+      --link: #00008b;
+      --sans: "IBM Plex Sans", sans-serif;
+      --accent: #d9480f;
+      --rule: #ddd;
+      --mono: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    * {
+      box-sizing: border-box
+    }
+
+    html {
+      scroll-behavior: auto
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font: 18px/1.55 var(--sans)
+    }
+
+    a {
+      color: var(--link)
+    }
+
+    h1,
+    h2 {
+      font-weight: 600;
+      line-height: 1.2
+    }
+
+    .wrap {
+      display: grid;
+      grid-template-columns: minmax(360px, 40%) minmax(0, 1fr)
+    }
+
+    #text {
+      padding: 0 2.2rem 45vh 3rem;
+      min-width: 0
+    }
+
+    #fig {
+      position: sticky;
+      top: 0;
+      align-self: start;
+      height: 100vh;
+      border-left: 1px solid var(--rule);
+      background: #fff
+    }
+
+    #svg {
+      width: 100%;
+      height: 100%;
+      display: block
+    }
+
+    header.intro {
+      min-height: 60vh;
+      padding-top: 12vh
+    }
+
+    header.intro h1 {
+      font-size: 2.4rem;
+      line-height: 1.15;
+      margin: 0 0 .6rem
+    }
+
+    header.intro p {
+      color: var(--muted);
+      margin: .4rem 0
+    }
+
+    kbd {
+      font: 600 .8em var(--mono);
+      border: 1px solid #ccc;
+      border-bottom-width: 2px;
+      border-radius: 4px;
+      padding: 0 .35em;
+      background: #fff
+    }
+
+    .step {
+      min-height: 72vh;
+      padding-top: 4vh;
+      opacity: .28;
+      transition: opacity .35s
+    }
+
+    .step.active {
+      opacity: 1
+    }
+
+    .step h2 {
+      font-size: 1.45rem;
+      margin: 0 0 .5rem;
+      line-height: 1.25
+    }
+
+    .step h2 .n {
+      display: inline-block;
+      min-width: 2.2em;
+      color: var(--accent);
+      font-variant-numeric: tabular-nums
+    }
+
+    .step ul {
+      padding-left: 1.15rem;
+      margin: .3rem 0
+    }
+
+    .step li {
+      margin: .35rem 0
+    }
+
+    .step .src {
+      font-size: .82rem;
+      color: var(--muted)
+    }
+
+    code {
+      font-family: var(--mono);
+      font-size: .88em;
+      background: #f2f2f2;
+      padding: 0 .25em;
+      border-radius: 3px
+    }
+
+    pre#print {
+      font: 12.5px/1.62 var(--mono);
+      background: #fff;
+      border: 1px solid var(--rule);
+      border-radius: 8px;
+      padding: .8rem 0;
+      overflow-x: auto;
+      margin: 1rem 0 50vh
+    }
+
+    pre#print .pl {
+      display: block;
+      padding: 0 .9rem;
+      white-space: pre;
+      border-left: 3px solid transparent;
+      color: #888
+    }
+
+    pre#print .pl.map {
+      color: var(--ink);
+      cursor: pointer
+    }
+
+    pre#print .pl.map:hover {
+      background: #fff4ec
+    }
+
+    pre#print .pl.on {
+      background: #ffe8d9;
+      border-left-color: var(--accent)
+    }
+
+    #badge {
+      position: absolute;
+      left: 16px;
+      top: 14px;
+      font: 600 14px/1.3 var(--sans);
+      color: var(--muted);
+      background: rgba(255, 255, 255, .88);
+      padding: .3rem .6rem;
+      border-radius: 6px;
+      pointer-events: none
+    }
+
+    #badge b {
+      color: var(--accent)
+    }
+
+    #note {
+      position: absolute;
+      left: 16px;
+      right: 16px;
+      bottom: 16px;
+      background: rgba(255, 255, 255, .95);
+      border: 1px solid var(--rule);
+      border-left: 4px solid var(--accent);
+      border-radius: 6px;
+      padding: .6rem .9rem;
+      font-size: 16px;
+      line-height: 1.45;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, .06);
+      opacity: 0;
+      transition: opacity .3s;
+      pointer-events: none
+    }
+
+    #note.show {
+      opacity: 1
+    }
+
+    #note code {
+      background: none;
+      padding: 0;
+      color: var(--accent);
+      font-weight: 600
+    }
+
+    #conn {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 5
+    }
+
+    #svg text {
+      font-family: var(--sans)
+    }
+
+    #svg .mono {
+      font-family: var(--mono)
+    }
+
+    #svg .fo {
+      display: flex;
+      align-items: center;
+      white-space: nowrap;
+      line-height: 1.15;
+      font-family: var(--sans)
+    }
+
+    #svg .fo .katex {
+      font-size: 1.06em
+    }
+
+    .step .katex,
+    #note .katex {
+      font-size: 1.04em
+    }
+
+    #svg * {
+      vector-effect: non-scaling-stroke
+    }
+
+    .fade {
+      transition: opacity .65s ease
+    }
+
+    .static .fade,
+    .static .part,
+    .static .step {
+      transition: none !important
+    }
+
+    .part {
+      transition: opacity .5s
+    }
+
+    .hlwrap[data-hl="proj"] .part:not(.part-proj),
+    .hlwrap[data-hl="score"] .part-out {
+      opacity: .16
+    }
+
+    .hlrect {
+      fill: rgba(217, 72, 15, .10);
+      stroke: #d9480f;
+      stroke-width: 3;
+      animation: pulse 1.4s ease-in-out infinite
+    }
+
+    @keyframes pulse {
+      50% {
+        stroke-opacity: .35
+      }
+    }
+
+    @media (max-width:820px) {
+      .wrap {
+        grid-template-columns: minmax(0, 1fr)
+      }
+
+      #fig {
+        order: -1;
+        height: 52vh;
+        z-index: 3;
+        border-left: 0;
+        border-bottom: 1px solid var(--rule)
+      }
+
+      #text {
+        padding: 0 16px 40vh
+      }
+
+      header.intro {
+        min-height: 30vh;
+        padding-top: 4vh
+      }
+
+      header.intro h1 {
+        font-size: 1.7rem
+      }
+
+      .step {
+        min-height: 60vh
+      }
+
+      #conn {
+        display: none
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <div id="text">
+      <header class="intro">
+        <h1>Transformers from the top down</h1>
+        <p>
+          We began this module by considering the encoder and decoder as “black boxes”, studying what each can do on
+          their own and together.
+          We then began to open up these boxes to understand the role of different components.
+          We have been gradually heading towards the figure of the transformer architecture presented in the original
+          paper, <a href="https://arxiv.org/abs/1706.03762"><em>Attention is all you need</em> (Vaswani et&nbsp;al.,
+            2017)</a>.</p>
+        <p>
+          In this summary, we’ll revise this whole process, finishing by matching the diagram to a real model’s code.
+          Specifically, we’ll be looking at
+          <a href='https://huggingface.co/Helsinki-NLP/opus-mt-en-de'><code>Helsinki-NLP/opus-mt-en-de</code></a>, a transformer
+          for English-German translation based on the MarianMT model that is very close to the originally proposed Transformer.
+        </p>
+        <p>The notation is the same as in lectures and in the paper: our input has $n$ tokens, the model dimension $d$, per-head
+          dimensions are $d_k$ (keys/queries) and $d_v$ (values), and there are $h$ attention heads in each of $N$ layers.</p>
+        <p>You can move through the animation by scrolling, or jump to the next step using <kbd>↓</kbd>/<kbd>↑</kbd>,
+          <kbd>PgDn</kbd>/<kbd>PgUp</kbd> or <kbd>Space</kbd>.
+        </p>
+        <p class="src">The running example for encoder-decoder architecture is translating <em>the cat sat on the mat</em> into
+          German. We’ll consider similar appropriate examples when discussing other architectures. All token IDs, attention
+          weights and probabilities shown are real
+          model outputs.</p>
+      </header>
+
+      <section class="step" data-step="1">
+        <h2><span class="n"></span>Encoder and decoder</h2>
+        <ul>
+          <li>A sequence-to-sequence transformer has two halves.</li>
+          <li>The <b>encoder</b> reads the whole input at once and outputs <b>one vector per input token</b>. Here there
+            are $n = 7$ tokens, so it outputs 7 vectors, each of dimension $d = 512$.</li>
+          <li>The <b>decoder</b> takes the output so far, plus all of the encoder's vectors, and outputs a probability
+            distribution for the <b>next token</b>.</li>
+          <li>To generate a longer text sample, we just pick a token, append it to the “output so far”, and run the decoder
+            again.</li>
+          <li>Uses for this architecture include translation, summarisation, and question answering. Well-known models include
+            the original Transformer, T5, the BART
+            family, and the MarianMT English→German model we use here (74M parameters).</li>
+        </ul>
+      </section>
+
+      <section class="step" data-step="2">
+        <h2><span class="n"></span>Encoder-only models</h2>
+        <ul>
+          <li>Some tasks don’t need textual output and therefore don’t need a full decoder. Instead, we can keep the encoder's per-token vectors and add a small task-specific <b>head</b>.</li>
+          <li>Here we illustrate a model for <b>masked language modelling</b>, where we predict a hidden token, indicated by the special token <code>[MASK]</code>, using context from
+            both sides.</li>
+          <li>We could apply other heads to the same encoder body, to perform tasks such as sentence classification, token classification, multiple
+            choice, or embeddings for search.</li>
+          <li>Well-known models of this sort include the BERT family (BERT, RoBERTa, DistilBERT, ModernBERT).</li>
+          <li class="src">The bars are real <code>bert-base-uncased</code> predictions for “the cat [MASK] on the mat.”</li>
+        </ul>
+      </section>
+
+      <section class="step" data-step="3">
+        <h2><span class="n"></span>Back to the encoder-decoder…</h2>
+        <ul>
+          <li>We then recognised that the decoder on its own is <em>already</em> a language model: it predicts the next token from the tokens
+            so far.</li>
+          <li>It just happens to <em>also</em> look at the encoder.</li>
+        </ul>
+      </section>
+
+      <section class="step" data-step="4">
+        <h2><span class="n"></span>Decoder-only models</h2>
+        <ul>
+          <li>If we remove the encoder (and its link to the decoder), we get a <b>causal language model</b>, whose task is to predict the
+            next token from the preceding ones only.</li>
+          <li>This is generally useful because almost any task can be phrased as continuing text, including translation (“English: … German:”), question answering,
+            chat, and coding. Most frontier LLMs are of this type.</li>
+          <li>Decoder-only models can be pre-trained on huge amounts of raw text with no labels: every token becomes a training target.</li>
+          <li>Well-known models of this sort include the GPT family, Llama, Qwen, and SmolLM. We’ve used several of these in the labs.</li>
+          <li class="src">The bars are real <code>SmolLM2-135M</code> probabilities after “The cat sat on the”.</li>
+          <li>We’re now ready to begin opening up the boxes, starting with the encoder.</li>
+        </ul>
+      </section>
+
+      <section class="step" data-step="5">
+        <h2><span class="n"></span>Input embedding</h2>
+        <ul>
+          <li>The tokeniser splits text into subword tokens 
+            and maps each one to an integer ID. Here there are $n = 7$ tokens.</li>  
+          <li>Using <code>SentencePiece</code>-type tokenisers, <code>▁</code> marks the start of a word.</li>
+          <li>The embedding layer is a lookup table containing one (learned) row of $d = 512$ numbers for each of the 58,101 vocabulary entries. (This is mathematically equivalent to multiplying a one-hot encoding by the lookup table as a matrix.) That adds up to 29.7M parameters, or 40% of this model.
+            Here $d$ is called the <b>model
+              dimension</b>.
+          </li>
+          <li>The same token always gets the same row: for instance, both <code>▁the</code>s get identical vectors. Context is added
+            by the layers above.</li>
+          <li>Stacking the rows gives $X$, an $n \times d = 7 \times 512$ matrix. MarianMT (like the transformer paper) scales
+            this matrix by $\sqrt{d} \approx 22.6$.</li>
+        </ul>
+      </section>
+
+      <section class="step" data-step="6">
+        <h2><span class="n"></span>Positional encoding</h2>
+        <ul>
+          <li>Attention heads do <em>not</em> intrinsically record word order. There are various ways of explicitly including this information; here we present the one from the original transformer paper.</li>
+          <li>We add a position-dependent vector to each token's embedding. $\text{PE}$ is another $n \times d$
+            matrix, so our input is now $X + \text{PE}$.</li>
+          <li>This vector is determined by a fixed sinusoidal encoding: each of the $d$ dimensions is a sine or cosine of the position, with
+            wavelengths that grow with the dimension number. Every position gets a unique pattern, and relative offsets are
+            easy to detect.</li>
+          <li class="src">The heatmaps are real MarianMT values. MarianMT puts all the sines in the first 256 dimensions and
+            the cosines in the last 256; the paper instead interleaves them, but the purpose is the same.</li>
+        </ul>
+      </section>
+
+      <section class="step" data-step="7">
+        <h2><span class="n"></span>One attention head: queries, keys, values</h2>
+        <ul>
+          <li>Each token's embedding $\mathbf{x}$ is projected three ways by learned matrices: the <em>query</em> $\mathbf{q} =
+            \mathbf{x}W_Q$ (what am I looking for?), the <em>key</em> $\mathbf{k} = \mathbf{x}W_K$ (what am I useful to?) and the <em>value</em>
+            $\mathbf{v} = \mathbf{x}W_V$ (what information do I give?).</li>
+          <li>These vectors can be simultaneously calculated for all tokens at once using matrix multiplication: $Q = XW_Q$, $K = XW_K$, $V = XW_V$. The same three weight matrices are used for every token.
+          </li>
+          <li>$W_Q$ and $W_K$ are $d \times d_k$, and $W_V$ is $d \times d_v$. In MarianMT each head has $d_k = d_v =
+            64$, so $Q$, $K$ and $V$ are $n \times 64$: 7 tokens, each with a 64-dimensional query, key and value.</li>
+        </ul>
+      </section>
+
+      <section class="step" data-step="8">
+        <h2><span class="n"></span>Scores and softmax</h2>
+        <ul>
+          <li>The score table $QK^\top$ is $n \times n$; the $(i, j)$ entry is $\mathbf{q}_i \cdot \mathbf{k}_j$, representing how well
+            token $i$’s query matches token $j$’s key.</li>
+          <li>We divide by $\sqrt{d_k} = \sqrt{64} = 8$ so that the overall score is independent of $d_k$.</li>
+          <li>We then apply softmax along each row to convert the scores into weights that sum to 1. 
+          </li>
+          <li>We saw in class that this process is effectively a soft dictionary lookup.</li>
+          <li class="src">These are real weights from MarianMT encoder layer 6, head 1. Each “the” attends strongly to its own
+            noun.</li>
+        </ul>
+      </section>
+
+      <section class="step" data-step="9">
+        <h2><span class="n"></span>Weighted sum of values</h2>
+        <ul>
+          <li>Output row $i$ is $\sum_j w_{ij}\,\mathbf{v}_j$: a context-dependent blend of the values.</li>
+          <li>In one line: $Z = \text{softmax}\!\left(QK^\top/\sqrt{d_k}\right)V$.</li>
+          <li>$Z$ is $n \times d_v$: one row per token ($n = 7$), each with $d_v = 64$ dimensions.</li>
+        </ul>
+      </section>
+
+      <section class="step" data-step="10">
+        <h2><span class="n"></span>Multi-head attention</h2>
+        <ul>
+          <li>$h = 8$ heads run in parallel, each with its own $W_Q^{(i)}$, $W_K^{(i)}$, $W_V^{(i)}$, so each head can
+            learn a different kind of relationship.</li>
+          <li>Each head works in a smaller space: $d_k = d_v = d/h = 512/8 = 64$.</li>
+          <li class="src">Thumbnails: the 8 real heads of the same layer. Note the different patterns.</li>
+          <li>The $h$ outputs ($n \times d_v$ each) are concatenated into $n \times h d_v = 7 \times 512$, then mixed by
+            one more matrix $W_O$ ($h d_v \times d = 512 \times 512$). The result is $n \times d$ again, the same shape
+            as the input.</li>
+          <li>From now on, all of this is one “Multi-Head Attention” box.</li>
+        </ul>
+      </section>
+
+      <section class="step" data-step="11">
+        <h2><span class="n"></span>Add &amp; Norm</h2>
+        <ul>
+          <li><b>Residual connection</b> (orange arrow): add the sublayer's input back to its output, $\mathbf{x} +
+            \text{MHA}(\mathbf{x})$. The sublayer only has to learn a <em>change</em>, and information and gradients can
+            flow straight through deep stacks.</li>
+          <li><b>Layer normalisation</b>: rescale each token's $d$-dimensional vector to mean 0 and variance 1, then
+            apply a learned scale $\gamma$ and shift $\beta$.</li>
+          <li>The paper and MarianMT normalise <em>after</em> the addition (“post-norm”): $\text{LayerNorm}(\mathbf{x} +
+            \text{Sublayer}(\mathbf{x}))$. Many newer models (T5, GPT-2 onwards) normalise <em>before</em> the sublayer.
+          </li>
+        </ul>
+      </section>
+
+      <section class="step" data-step="12">
+        <h2><span class="n"></span>Feed-forward network</h2>
+        <ul>
+          <li>Two linear layers with a non-linearity between them: $d \to d_{ff} \to d$, i.e. $512 \to 2048 \to 512$.
+          </li>
+          <li>Applied to each token separately, with the same weights at every position. Attention mixes information
+            <em>between</em> tokens; the feed-forward network processes each token's vector.</li>
+          <li>It holds most of a layer's parameters: 2.1M, against 1.05M for attention.</li>
+          <li>Activation: ReLU in the paper; MarianMT uses SiLU (“swish”).</li>
+          <li>Then another Add &amp; Norm. That completes one encoder layer.</li>
+        </ul>
+      </section>
+
+      <section class="step" data-step="13">
+        <h2><span class="n"></span>Stacking layers</h2>
+        <ul>
+          <li>A layer takes an $n \times d$ matrix and returns an $n \times d$ matrix, so layers can be stacked.</li>
+          <li>MarianMT's encoder has 6 layers with the same architecture but their own weights. Each refines the token
+            vectors using context gathered by the layers below.</li>
+        </ul>
+      </section>
+
+      <section class="step" data-step="14">
+        <h2><span class="n"></span>The N× shorthand</h2>
+        <ul>
+          <li>The paper draws one layer and marks it <b>N×</b> ($N = 6$ in the base model and in MarianMT).</li>
+          <li>BERT-base has 12; large LLMs have 30 to 100+.</li>
+        </ul>
+      </section>
+
+      <section class="step" data-step="15">
+        <h2><span class="n"></span>A masked-LM head</h2>
+        <ul>
+          <li>A <b>linear</b> layer maps each $d$-dimensional vector (512 here; 768 in BERT-base) to one score (logit)
+            per vocabulary entry, and a <b>softmax</b> turns those scores into probabilities.</li>
+          <li>For masked LM, the loss is computed only at the masked positions.</li>
+          <li class="src">BERT's real head adds a dense + LayerNorm step before the linear layer, and its output weights
+            are tied to the embedding matrix.</li>
+          <li>For classification, swap in a linear layer to a few classes, applied to one token's vector (e.g.
+            <code>[CLS]</code>).</li>
+        </ul>
+      </section>
+
+      <section class="step" data-step="16">
+        <h2><span class="n"></span>The whole encoder-only model</h2>
+        <ul>
+          <li>Embedding + positions → N× encoder layer → head. That is essentially BERT.</li>
+        </ul>
+      </section>
+
+      <section class="step" data-step="17">
+        <h2><span class="n"></span>Adding a decoder</h2>
+        <ul>
+          <li>For translation, we remove the head and connect a <b>decoder</b>. The encoder's output ($n \times d = 7
+            \times 512$) feeds <em>every</em> decoder layer.</li>
+          <li>The decoder uses the same building blocks, plus one new one.</li>
+        </ul>
+      </section>
+
+      <section class="step" data-step="18">
+        <h2><span class="n"></span>Output embedding</h2>
+        <ul>
+          <li>The decoder's input is the target sentence <b>shifted right</b>: it starts with a start token (MarianMT
+            uses <code>&lt;pad&gt;</code>, ID 58100), so position $i$ predicts token $i+1$.</li>
+          <li>During training the whole target is fed in at once: $n = 8$ tokens here, because “Matte” is split into
+            <code>▁Matt</code> + <code>e</code>.</li>
+          <li>The lookup is the same as before. MarianMT uses <b>one shared matrix</b> for the encoder input, the decoder input and
+            the output layer.</li>
+        </ul>
+      </section>
+
+      <section class="step" data-step="19">
+        <h2><span class="n"></span>Positional encoding, again</h2>
+        <ul>
+          <li>This works exactly as in the encoder: the same fixed sinusoids, now for 8 positions.</li>
+        </ul>
+      </section>
+
+      <section class="step" data-step="20">
+        <h2><span class="n"></span>Masked self-attention</h2>
+        <ul>
+          <li>This is the same as encoder self-attention, except that each position may only attend to itself and
+            <em>earlier</em> positions.</li>
+          <li>We achieve this by setting the scores above the diagonal to $-\infty$ before the softmax, so that their weights become
+            0.</li>
+          <li>Why? In training, all 8 positions are computed in parallel with the whole target present. Without
+            the mask, position $i$ could simply copy token $i+1$. The mask makes training match generation, where later
+            tokens don't exist yet.</li>
+          <li class="src">This is MarianMT decoder layer 1, head 3: it mostly looks at the previous token.</li>
+        </ul>
+      </section>
+
+      <section class="step" data-step="21">
+        <h2><span class="n"></span>Masked multi-head attention</h2>
+        <ul>
+          <li>We run $h = 8$ masked heads in parallel, then concatenate and apply $W_O$, exactly as before.</li>
+          <li class="src">Shown are the 8 real heads of decoder layer 1. Note that each is lower-triangular, i.e., masked.</li>
+        </ul>
+      </section>
+
+      <section class="step" data-step="22">
+        <h2><span class="n"></span>Add &amp; Norm</h2>
+        <ul>
+          <li>This is identical to the encoder: a residual connection around the masked attention (orange arrow), then a normalisation step.</li>
+        </ul>
+      </section>
+
+      <section class="step" data-step="23">
+        <h2><span class="n"></span>Cross-attention</h2>
+        <ul>
+          <li>We now have a second attention sublayer. <b>Queries</b> come from the decoder (the sublayer below); but <b>keys and
+              values</b> come from the <b>encoder output</b>.</li>
+          <li>This is where the decoder “reads” the source sentence: each target position looks up the source tokens it
+            needs.</li>
+          <li>The same encoder output is fed to all 6 decoder layers.</li>
+        </ul>
+      </section>
+
+      <section class="step" data-step="24">
+        <h2><span class="n"></span>One cross-attention head</h2>
+        <ul>
+          <li>$Q$ comes from the decoder's $n_\text{dec} = 8$ tokens; $K$ and $V$ come from the encoder's $n_\text{enc}
+            = 7$ tokens.</li>
+          <li>So the score table is $n_\text{dec} \times n_\text{enc} = 8 \times 7$. It isn't square, and there's no
+            mask, because the whole source is known.</li>
+          <li class="src">This MarianMT decoder layer 6, head 1. At each position it
+            attends to the English word it is about to translate.</li>
+        </ul>
+      </section>
+
+      <section class="step" data-step="25">
+        <h2><span class="n"></span>Feed-forward + Add &amp; Norm</h2>
+        <ul>
+          <li>Again, this is the same as the encoder: position-wise $d \to d_{ff} \to d$ network, with a residual connection and
+            normalisation.</li>
+          <li>A decoder layer therefore has <em>three</em> sublayers, each wrapped in Add &amp; Norm.</li>
+        </ul>
+      </section>
+
+      <section class="step" data-step="26">
+        <h2><span class="n"></span>Stacking decoder layers</h2>
+        <ul>
+          <li>6 decoder layers. Each one receives the encoder output through its own cross-attention.</li>
+        </ul>
+      </section>
+
+      <section class="step" data-step="27">
+        <h2><span class="n"></span>N×, again</h2>
+        <ul>
+          <li>Once again, we hide the details by simply writing N×.</li>
+        </ul>
+      </section>
+
+      <section class="step" data-step="28">
+        <h2><span class="n"></span>Output head</h2>
+        <ul>
+          <li><b>Linear</b>: $d \to$ vocabulary, i.e. $512 \to 58{,}101$ logits at each of the 8 positions. In MarianMT
+            these weights are the shared embedding matrix again, plus a bias.</li>
+          <li><b>Softmax</b> → probabilities. Training uses cross-entropy against the true next token at every position,
+            all in parallel.</li>
+          <li>To generate text, we use the algorithms we studied in week 1. We choose a token, using an algorithm such as greedy, sampling, or beam search; append it; and repeat until
+            <code>&lt;/s&gt;</code>.</li>
+          <li class="src">Shown are MarianMT probabilities at the position after “die Katze”.</li>
+        </ul>
+      </section>
+
+      <section class="step" data-step="29">
+        <h2><span class="n"></span>The full transformer</h2>
+        <ul>
+          <li>This shows the full model we’ve just discussed. Compare it with Figure 1 of <a href="https://arxiv.org/abs/1706.03762">Vaswani et al.
+              (2017)</a>.</li>
+          <li>Later models refined some of the details: pre-norm, relative or rotary positions, decoder-only stacks, different
+            activations, and far more layers and parameters. The building blocks, however, are the same.</li>
+        </ul>
+      </section>
+
+      <section class="step" data-step="30">
+        <h2><span class="n"></span>The real thing: <code>print(model)</code></h2>
+        <ul>
+          <li>This is the actual output of <code>print(model)</code> for <code>MarianMTModel</code> (74.4M parameters).
+            Hover over a line, click it, or keep scrolling to see where each module sits in the diagram.</li>
+          <li>Some things in the diagram are not modules: the residual “Add” is a plain <code>+</code> in
+            <code>forward()</code>, the causal mask is a tensor, and the final softmax is applied by the loss or by
+            <code>generate()</code>.</li>
+          <li>Print order is the order in which modules were defined, not the order in which data flows.</li>
+        </ul>
+        <pre id="print"></pre>
+      </section>
+    </div>
+
+    <div id="fig">
+      <svg id="svg" viewBox="-245 205 975 890" preserveAspectRatio="xMidYMid meet" role="img"
+        aria-label="Animated transformer diagram"></svg>
+      <div id="badge"></div>
+      <div id="note"></div>
+    </div>
+  </div>
+  <svg id="conn"></svg>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.21/katex.min.js"></script>
+  <script>
+    const DATA={"enc_heads":[[[0.03,0.92,0.01,0.0,0.0,0.02,0.02],[0.12,0.49,0.01,0.0,0.03,0.01,0.34],[0.06,0.03,0.08,0.36,0.15,0.04,0.28],[0.01,0.0,0.01,0.01,0.3,0.62,0.06],[0.0,0.0,0.0,0.0,0.01,0.98,0.01],[0.03,0.01,0.04,0.02,0.16,0.46,0.28],[0.0,0.0,0.0,0.0,0.0,0.0,0.99]],[[0.45,0.24,0.1,0.08,0.07,0.06,0.0],[0.43,0.31,0.13,0.04,0.01,0.07,0.01],[0.42,0.15,0.27,0.03,0.04,0.06,0.02],[0.31,0.04,0.38,0.03,0.05,0.18,0.01],[0.24,0.07,0.31,0.15,0.09,0.15,0.0],[0.05,0.05,0.07,0.46,0.19,0.17,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.99]],[[0.84,0.06,0.03,0.03,0.02,0.01,0.01],[0.12,0.7,0.03,0.02,0.02,0.11,0.01],[0.03,0.34,0.28,0.07,0.02,0.25,0.01],[0.02,0.09,0.04,0.1,0.35,0.38,0.02],[0.1,0.06,0.1,0.11,0.35,0.29,0.01],[0.04,0.11,0.03,0.01,0.03,0.77,0.01],[0.09,0.07,0.04,0.06,0.05,0.01,0.69]],[[0.38,0.12,0.06,0.03,0.05,0.03,0.32],[0.2,0.37,0.08,0.03,0.03,0.12,0.17],[0.08,0.16,0.41,0.07,0.02,0.06,0.2],[0.07,0.06,0.09,0.29,0.09,0.11,0.28],[0.07,0.03,0.04,0.11,0.38,0.09,0.28],[0.03,0.14,0.06,0.03,0.09,0.4,0.25],[0.1,0.17,0.19,0.05,0.05,0.11,0.33]],[[0.09,0.03,0.79,0.02,0.0,0.0,0.07],[0.18,0.47,0.05,0.0,0.01,0.06,0.23],[0.03,0.02,0.53,0.17,0.03,0.04,0.19],[0.02,0.02,0.11,0.32,0.11,0.21,0.22],[0.0,0.0,0.02,0.95,0.01,0.01,0.01],[0.0,0.0,0.06,0.12,0.01,0.74,0.07],[0.0,0.0,0.0,0.0,0.0,0.0,1.0]],[[0.01,0.0,0.0,0.0,0.0,0.0,0.99],[1.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,1.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,1.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,1.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.01,0.99,0.0,0.0],[0.0,0.09,0.01,0.0,0.01,0.74,0.15]],[[0.0,1.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,1.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.99,0.01,0.0,0.0],[0.0,0.0,0.0,0.0,1.0,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,1.0,0.0],[0.0,0.0,0.02,0.01,0.0,0.0,0.97],[0.0,0.0,0.0,0.0,0.0,0.0,1.0]],[[0.06,0.01,0.8,0.1,0.03,0.0,0.01],[0.0,0.99,0.0,0.0,0.0,0.0,0.0],[0.02,0.01,0.68,0.23,0.04,0.01,0.0],[0.03,0.01,0.08,0.21,0.22,0.44,0.0],[0.04,0.0,0.04,0.11,0.79,0.02,0.0],[0.0,0.02,0.0,0.01,0.03,0.94,0.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.99]]],"enc_head":0,"dec_heads":[[[1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.73,0.27,0.0,0.0,0.0,0.0,0.0,0.0],[0.95,0.05,0.0,0.0,0.0,0.0,0.0,0.0],[0.95,0.05,0.0,0.0,0.0,0.0,0.0,0.0],[0.01,0.0,0.0,0.03,0.96,0.0,0.0,0.0],[0.13,0.02,0.01,0.03,0.69,0.13,0.0,0.0],[0.92,0.01,0.0,0.0,0.01,0.06,0.0,0.0],[0.47,0.02,0.0,0.0,0.01,0.18,0.02,0.3]],[[1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.93,0.07,0.0,0.0,0.0,0.0,0.0,0.0],[0.97,0.03,0.0,0.0,0.0,0.0,0.0,0.0],[0.97,0.01,0.01,0.01,0.0,0.0,0.0,0.0],[0.89,0.01,0.03,0.05,0.02,0.0,0.0,0.0],[0.12,0.0,0.0,0.01,0.84,0.04,0.0,0.0],[0.99,0.0,0.0,0.0,0.0,0.01,0.0,0.0],[0.01,0.0,0.0,0.0,0.0,0.01,0.97,0.01]],[[1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.76,0.24,0.0,0.0,0.0,0.0,0.0,0.0],[0.26,0.67,0.07,0.0,0.0,0.0,0.0,0.0],[0.37,0.09,0.39,0.16,0.0,0.0,0.0,0.0],[0.02,0.02,0.17,0.53,0.26,0.0,0.0,0.0],[0.01,0.0,0.01,0.09,0.8,0.1,0.0,0.0],[0.33,0.0,0.0,0.0,0.06,0.56,0.05,0.0],[0.0,0.0,0.0,0.0,0.0,0.02,0.91,0.06]],[[1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.52,0.48,0.0,0.0,0.0,0.0,0.0,0.0],[0.95,0.05,0.0,0.0,0.0,0.0,0.0,0.0],[0.58,0.02,0.0,0.4,0.0,0.0,0.0,0.0],[0.44,0.38,0.0,0.17,0.01,0.0,0.0,0.0],[0.75,0.01,0.01,0.01,0.04,0.18,0.0,0.0],[0.96,0.0,0.0,0.0,0.02,0.02,0.0,0.0],[0.01,0.0,0.0,0.0,0.0,0.01,0.96,0.01]],[[1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.83,0.17,0.0,0.0,0.0,0.0,0.0,0.0],[0.95,0.05,0.0,0.0,0.0,0.0,0.0,0.0],[0.98,0.02,0.0,0.0,0.0,0.0,0.0,0.0],[0.34,0.05,0.11,0.39,0.12,0.0,0.0,0.0],[0.41,0.01,0.01,0.18,0.18,0.21,0.0,0.0],[0.94,0.0,0.0,0.0,0.01,0.05,0.0,0.0],[0.11,0.01,0.0,0.01,0.04,0.04,0.61,0.17]],[[1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.54,0.46,0.0,0.0,0.0,0.0,0.0,0.0],[0.64,0.3,0.05,0.0,0.0,0.0,0.0,0.0],[0.76,0.14,0.06,0.04,0.0,0.0,0.0,0.0],[0.21,0.25,0.11,0.26,0.16,0.0,0.0,0.0],[0.26,0.11,0.09,0.11,0.15,0.28,0.0,0.0],[0.64,0.04,0.01,0.02,0.16,0.12,0.02,0.0],[0.17,0.08,0.01,0.0,0.19,0.26,0.02,0.27]],[[1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.9,0.1,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,1.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0],[0.0,0.01,0.05,0.88,0.06,0.0,0.0,0.0],[0.0,0.0,0.0,0.07,0.88,0.05,0.0,0.0],[0.0,0.0,0.0,0.0,0.0,0.02,0.98,0.0],[0.0,0.0,0.0,0.0,0.0,0.01,0.96,0.03]],[[1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.66,0.34,0.0,0.0,0.0,0.0,0.0,0.0],[0.96,0.04,0.0,0.0,0.0,0.0,0.0,0.0],[0.99,0.01,0.0,0.0,0.0,0.0,0.0,0.0],[0.58,0.08,0.02,0.3,0.01,0.0,0.0,0.0],[0.06,0.19,0.0,0.0,0.1,0.64,0.0,0.0],[0.99,0.0,0.0,0.0,0.0,0.01,0.0,0.0],[0.46,0.02,0.01,0.0,0.04,0.04,0.3,0.14]]],"dec_head":2,"x_heads":[[[0.82,0.03,0.06,0.04,0.03,0.0,0.01],[0.0,0.98,0.0,0.0,0.0,0.01,0.0],[0.0,0.01,0.79,0.17,0.01,0.0,0.01],[0.0,0.0,0.01,0.96,0.02,0.0,0.0],[0.01,0.0,0.0,0.01,0.98,0.01,0.0],[0.0,0.04,0.0,0.01,0.01,0.93,0.01],[0.01,0.06,0.2,0.03,0.07,0.52,0.12],[0.12,0.06,0.19,0.12,0.19,0.11,0.22]],[[0.02,0.29,0.25,0.02,0.0,0.04,0.38],[0.03,0.76,0.04,0.01,0.01,0.03,0.12],[0.0,0.03,0.73,0.02,0.0,0.01,0.21],[0.0,0.02,0.07,0.01,0.0,0.03,0.88],[0.0,0.02,0.04,0.01,0.01,0.28,0.64],[0.01,0.09,0.03,0.01,0.04,0.56,0.26],[0.0,0.01,0.04,0.0,0.0,0.04,0.9],[0.01,0.02,0.07,0.01,0.0,0.03,0.86]],[[0.0,0.04,0.72,0.03,0.0,0.02,0.18],[0.01,0.76,0.1,0.01,0.0,0.05,0.08],[0.0,0.0,0.97,0.02,0.0,0.0,0.0],[0.0,0.01,0.17,0.02,0.0,0.06,0.74],[0.0,0.0,0.06,0.01,0.0,0.26,0.67],[0.0,0.01,0.01,0.01,0.01,0.88,0.09],[0.0,0.01,0.02,0.0,0.0,0.04,0.92],[0.01,0.02,0.26,0.03,0.0,0.01,0.67]],[[0.11,0.07,0.08,0.18,0.04,0.02,0.49],[0.03,0.27,0.03,0.08,0.01,0.02,0.55],[0.02,0.03,0.09,0.58,0.09,0.02,0.18],[0.02,0.01,0.11,0.36,0.23,0.09,0.18],[0.0,0.01,0.01,0.03,0.01,0.1,0.83],[0.0,0.06,0.01,0.02,0.0,0.14,0.77],[0.0,0.01,0.02,0.02,0.01,0.02,0.92],[0.02,0.02,0.04,0.05,0.02,0.02,0.82]],[[0.07,0.14,0.13,0.03,0.01,0.06,0.56],[0.03,0.82,0.01,0.0,0.0,0.04,0.1],[0.02,0.04,0.17,0.14,0.06,0.08,0.49],[0.01,0.02,0.1,0.11,0.1,0.11,0.56],[0.0,0.01,0.01,0.02,0.01,0.31,0.63],[0.0,0.03,0.01,0.01,0.01,0.77,0.17],[0.0,0.02,0.03,0.01,0.0,0.07,0.87],[0.01,0.03,0.08,0.03,0.01,0.04,0.8]],[[0.05,0.12,0.47,0.02,0.01,0.02,0.31],[0.01,0.84,0.03,0.0,0.0,0.03,0.07],[0.02,0.02,0.82,0.03,0.01,0.01,0.09],[0.01,0.02,0.05,0.01,0.01,0.02,0.88],[0.0,0.01,0.03,0.0,0.01,0.29,0.66],[0.0,0.03,0.01,0.01,0.01,0.86,0.08],[0.01,0.02,0.09,0.01,0.01,0.03,0.84],[0.01,0.02,0.08,0.01,0.0,0.02,0.85]],[[0.03,0.28,0.22,0.02,0.0,0.04,0.42],[0.0,0.95,0.01,0.0,0.0,0.01,0.03],[0.0,0.03,0.77,0.04,0.0,0.01,0.15],[0.0,0.02,0.07,0.06,0.01,0.07,0.78],[0.0,0.01,0.01,0.02,0.05,0.27,0.64],[0.0,0.05,0.01,0.0,0.01,0.75,0.19],[0.01,0.03,0.02,0.02,0.04,0.08,0.8],[0.02,0.02,0.09,0.02,0.0,0.02,0.83]],[[0.31,0.2,0.06,0.01,0.01,0.03,0.38],[0.05,0.74,0.01,0.0,0.01,0.04,0.15],[0.06,0.07,0.06,0.04,0.04,0.03,0.7],[0.05,0.04,0.02,0.06,0.1,0.05,0.68],[0.01,0.02,0.01,0.03,0.15,0.33,0.46],[0.01,0.07,0.01,0.0,0.02,0.7,0.19],[0.03,0.03,0.02,0.01,0.02,0.05,0.85],[0.11,0.03,0.02,0.01,0.02,0.02,0.79]]],"x_head":0,"next":{"0":[["▁die",0.491],["▁Die",0.175],["▁der",0.033],["▁auf",0.018],["▁saß",0.017]],"1":[["▁Katze",0.957],["▁Kat",0.006],["▁",0.004],["▁Katzen",0.002],["katze",0.002]],"2":[["▁saß",0.566],["▁auf",0.117],["▁setzte",0.094],["▁sa",0.036],["▁sitzt",0.031]],"3":[["▁auf",0.87],["▁in",0.003],["▁an",0.003],["▁mit",0.002],["▁im",0.001]],"4":[["▁der",0.74],["▁dem",0.12],["▁die",0.012],["▁den",0.01],["▁einer",0.003]],"5":[["▁Matt",0.898],["▁Mat",0.017],["matt",0.005],["▁matt",0.004],["▁Bett",0.003]],"6":[["e",0.913],["en",0.004],["<pad>",0.0],["</s>",0.0],["te",0.0]],"7":[["</s>",0.787],[".",0.065],[",",0.017],["<pad>",0.009],["▁und",0.003]]}};
+  </script>
+  <script>
+    (function () {
+      "use strict";
+      const NS = 'http://www.w3.org/2000/svg';
+      const STATIC = /[?&]static\b/.test(location.search);
+      if (STATIC) document.documentElement.classList.add('static');
+      const svg = document.getElementById('svg');
+
+      /* ---------- helpers ---------- */
+      function E(tag, attrs, parent, text) {
+        const e = document.createElementNS(NS, tag);
+        if (attrs) for (const k in attrs) { if (attrs[k] != null) e.setAttribute(k, attrs[k]); }
+        if (text != null) e.textContent = text;
+        if (parent) parent.appendChild(e);
+        return e;
+      }
+      const G = {};           // toggleable groups
+      const R = {};           // world rects of nodes
+      const DR = {};          // world rects of details
+      const CS = [];          // counter-scaled world elements
+      function grp(id, parent) { const g = E('g', { id, class: 'fade' }, parent || world); g.style.opacity = 0; G[id] = g; return g; }
+      function hex(c) { c = c.replace('#', ''); return [0, 2, 4].map(i => parseInt(c.substr(i, 2), 16)); }
+      function mix(a, b, t) { const A = hex(a), B = hex(b); return 'rgb(' + A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(',') + ')'; }
+      function rnd(a, b, c) { let h = Math.imul(a + 1, 374761393) ^ Math.imul(b + 7, 668265263) ^ Math.imul(c + 13, 1274126177); h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16; return ((h >>> 0) % 10007) / 10007; }
+      const attnC = w => mix('#ffffff', '#3b2a8f', Math.pow(Math.max(0, Math.min(1, w)), 0.7));
+      const peC = v => v >= 0 ? mix('#ffffff', '#c0392b', v) : mix('#ffffff', '#2c6fbb', -v);
+      const C = {
+        emb: '#fadadd', mha: '#fde0b9', an: '#f0f5c2', ffn: '#c4e6f4', lin: '#dcdcf0', sm: '#c9e7d1', br: '#f2f2f2',
+        encM: '#dce8f7', decM: '#f6e0ea', Q: '#4f86c6', K: '#4f9d63', V: '#e08a2e', X: '#e58f9b', acc: '#d9480f', ink: '#000'
+      };
+
+      /* world label: counter-scaled so it never grows beyond mx px */
+      function label(p, x, y, lines, fs, o) {
+        o = o || {}; if (typeof lines === 'string') lines = [lines];
+        const t = E('text', { x, y, 'font-size': fs, 'text-anchor': o.a || 'middle', 'font-weight': o.w || 500, fill: o.c || C.ink }, p);
+        const lh = fs * 1.15, n = lines.length;
+        lines.forEach((s, i) => E('tspan', { x, dy: i === 0 ? (-(n - 1) / 2 * lh + fs * 0.35) : lh }, t, s));
+        CS.push({ el: t, x, y, fs, mx: o.mx || 18 });
+        return t;
+      }
+      /* detail text (scales with its detail group). Supports _x / ^x sub/superscripts */
+      function T(p, x, y, s, fs, o) {
+        o = o || {};
+        const t = E('text', { x, y, 'font-size': fs, 'text-anchor': o.a || 'start', fill: o.c || C.ink, 'font-weight': o.w || null, class: o.mono ? 'mono' : null, 'font-style': o.i ? 'italic' : null, transform: o.rot ? `rotate(${o.rot} ${x} ${y})` : null }, p);
+        let cur = 0;
+        const add = (txt, off, small, mono) => { const a = { dy: off - cur }; if (small) a['font-size'] = fs * 0.72; if (mono) a.class = 'mono'; E('tspan', a, t, txt); cur = off; };
+        s.split('`').forEach((seg, k) => {
+          if (!seg) return;
+          if (k % 2) { add(seg, 0, false, true); return; }
+          const re = /([_^])(\{[^}]*\}|.)/g; let last = 0, m;
+          while ((m = re.exec(seg))) { if (m.index > last) add(seg.slice(last, m.index), 0, false); add(m[2].replace(/[{}]/g, ''), m[1] === '_' ? fs * 0.3 : -fs * 0.4, true); last = re.lastIndex; }
+          if (last < seg.length) add(seg.slice(last), 0, false);
+        });
+        return t;
+      }
+      /* KaTeX: '$...$' segments are typeset, the rest is plain text */
+      const esc = s => s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+      const tex = s => window.katex ? katex.renderToString(s, { throwOnError: false }) : esc(s);
+      function texMix(s) { return s.split('$').map((seg, k) => k % 2 ? tex(seg) : esc(seg).replace(/`([^`]*)`/g, '<span style="font-family:var(--mono)">$1</span>')).join(''); }
+      function texHTML(html) { return html.replace(/\$([^$]+)\$/g, (_, m) => tex(m)); }
+      function M(p, x, y, s, fs, o) {
+        o = o || {}; const W = 1600, H = fs * 3.2, a = o.a || 'start';
+        const fo = E('foreignObject', { x: a === 'middle' ? x - W / 2 : a === 'end' ? x - W : x, y: y - fs * 0.35 - H / 2, width: W, height: H }, p);
+        const d = document.createElement('div'); d.className = 'fo';
+        d.style.cssText = `height:${H}px;justify-content:${a === 'middle' ? 'center' : a === 'end' ? 'flex-end' : 'flex-start'};font-size:${fs}px;color:${o.c || C.ink};${o.w ? 'font-weight:' + o.w + ';' : ''}`;
+        d.innerHTML = '<span>' + texMix(s) + '</span>'; fo.appendChild(d); return fo;
+      }
+      /* world wire with counter-scaled arrowhead */
+      function wire(p, pts, o) {
+        o = o || {};
+        E('path', { d: 'M' + pts.map(q => q.join(' ')).join(' L'), fill: 'none', stroke: o.c || '#222', 'stroke-width': o.w || 2.2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }, p);
+        if (o.head !== false) {
+          const [x2, y2] = pts[pts.length - 1], [x1, y1] = pts[pts.length - 2];
+          const a = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+          const h = E('path', { d: 'M0 0 L-10 -5 L-10 5 Z', fill: o.c || '#222' }, p);
+          CS.push({ el: h, x: x2, y: y2, fs: 10, mx: 11, rot: a });
+        }
+      }
+      /* detail arrow (scales with group) */
+      function arr(p, pts, o) {
+        o = o || {};
+        E('path', { d: 'M' + pts.map(q => q.join(' ')).join(' L'), fill: 'none', stroke: o.c || '#444', 'stroke-width': o.w || 1.6, 'stroke-linejoin': 'round' }, p);
+        const [x2, y2] = pts[pts.length - 1], [x1, y1] = pts[pts.length - 2];
+        const a = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI, s = o.s || 8;
+        E('path', { d: `M0 0 L${-s} ${-s / 2} L${-s} ${s / 2} Z`, fill: o.c || '#444', transform: `translate(${x2} ${y2}) rotate(${a})` }, p);
+      }
+      function grid(p, x, y, rows, cols, cw, ch, color, seed, rowSeeds) {
+        const g = E('g', {}, p);
+        for (let r = 0; r < rows; r++)for (let c = 0; c < cols; c++) {
+          const s = rowSeeds ? rowSeeds[r] : seed * 31 + r;
+          E('rect', { x: x + c * cw, y: y + r * ch, width: cw, height: ch, fill: mix('#ffffff', color, 0.25 + 0.75 * rnd(s, c, seed)), stroke: '#fff', 'stroke-width': 0.6 }, g);
+        }
+        E('rect', { x, y, width: cols * cw, height: rows * ch, fill: 'none', stroke: '#555', 'stroke-width': 1 }, g);
+        return g;
+      }
+      function heat(p, x, y, A, cs, mask) {
+        const g = E('g', {}, p);
+        A.forEach((row, i) => row.forEach((w, j) => {
+          const masked = mask && j > i;
+          E('rect', { x: x + j * cs, y: y + i * cs, width: cs, height: cs, fill: masked ? 'url(#hatch)' : attnC(w), stroke: '#fff', 'stroke-width': 0.6 }, g);
+        }));
+        E('rect', { x, y, width: A[0].length * cs, height: A.length * cs, fill: 'none', stroke: '#555', 'stroke-width': 1 }, g);
+        return g;
+      }
+      function chips(p, cx, y, toks) {
+        const g = E('g', {}, p), pad = 7, gap = 5, fs = 12.5, ws = [], out = [];
+        const probe = E('text', { 'font-size': fs, class: 'mono' }, svg);
+        toks.forEach(t => { probe.textContent = t; ws.push(probe.getComputedTextLength() + 2 * pad); });
+        probe.remove();
+        const tot = ws.reduce((a, b) => a + b, 0) + gap * (toks.length - 1); let x = cx - tot / 2;
+        toks.forEach((t, i) => { out.push({ x, w: ws[i] }); x += ws[i] + gap; });
+        return { g, pos: out, fs };
+      }
+      function drawChip(p, c, t, fs, y, fill) {
+        E('rect', { x: c.x, y, width: c.w, height: 22, rx: 5, fill: fill || '#fff', stroke: '#777', 'stroke-width': 1.2 }, p);
+        const tx = E('text', { x: c.x + c.w / 2, y: y + 15.5, 'font-size': fs, 'text-anchor': 'middle', class: 'mono', fill: C.ink }, p, t);
+        CS.push({ el: tx, x: c.x + c.w / 2, y: y + 11, fs, mx: 16 });
+      }
+      function sine(p, cx, cy, r) {
+        E('circle', { cx, cy, r, fill: '#fff', stroke: '#222', 'stroke-width': 2 }, p);
+        E('path', { d: `M${cx - r * 0.7} ${cy} C ${cx - r * 0.45} ${cy - r * 0.95}, ${cx - r * 0.2} ${cy - r * 0.95}, ${cx} ${cy} S ${cx + r * 0.45} ${cy + r * 0.95}, ${cx + r * 0.7} ${cy}`, fill: 'none', stroke: '#222', 'stroke-width': 2 }, p);
+      }
+      function oplus(p, cx, cy, r) {
+        E('circle', { cx, cy, r, fill: '#fff', stroke: '#222', 'stroke-width': 2 }, p);
+        E('path', { d: `M${cx - r} ${cy} H${cx + r} M${cx} ${cy - r} V${cy + r}`, stroke: '#222', 'stroke-width': 2 }, p);
+      }
+      function node(id, x, y, w, h, fill, lines, fs) {
+        const g = grp(id); R[id] = { x, y, w, h };
+        E('rect', { x, y, width: w, height: h, rx: 6, fill, stroke: '#222', 'stroke-width': 2.4 }, g);
+        label(grp(id + '_lbl', g), x + w / 2, y + h / 2, lines, fs || 15);
+        return g;
+      }
+      /* place a detail drawing (design size dw×dh) inside a local rect of a parent frame */
+      function detail(id, parent, frame, lr, dw, dh, pad) {
+        pad = pad == null ? 3 : pad;
+        const s = Math.min((lr.w - 2 * pad) / dw, (lr.h - 2 * pad) / dh);
+        const lx = lr.x + (lr.w - dw * s) / 2, ly = lr.y + (lr.h - dh * s) / 2;
+        const g = grp(id, parent);
+        const inner = E('g', { transform: `translate(${lx} ${ly}) scale(${s})` }, g);
+        const wf = { x: frame.x + frame.s * lx, y: frame.y + frame.s * ly, s: frame.s * s };
+        DR[id] = { x: wf.x, y: wf.y, w: dw * wf.s, h: dh * wf.s };
+        E('rect', { x: 0, y: 0, width: dw, height: dh, rx: 16, fill: '#fff', stroke: '#c9c4ba', 'stroke-width': 1.2 }, inner);
+        return { g: inner, f: wf, outer: g };
+      }
+      const W0 = { x: 0, y: 0, s: 1 };
+
+      /* ---------- data ---------- */
+      const ENC_T = ['▁the', '▁cat', '▁sat', '▁on', '▁the', '▁mat', '</s>'];
+      const ENC_ID = [4, 12064, 10369, 32, 4, 19160, 0];
+      const DEC_T = ['<pad>', '▁die', '▁Katze', '▁saß', '▁auf', '▁der', '▁Matt', 'e'];
+      const DEC_ID = [58100, 11, 23859, 19197, 37, 9, 7234, 18];
+      const VOCAB = 58101;
+      const BERT = [['sat', .168], ['lay', .083], ['was', .062], ['landed', .053], ['collapsed', .050]];
+      const NEXT = DATA.next['2'].map(([t, p]) => [t, p]);
+      const SMOL = [[' bed', .077], [' edge', .053], [' window', .032], [' table', .032], [' so', .025]];
+      function PE(pos, j) { const d = 512; if (j < 256) return Math.sin(pos / Math.pow(10000, 2 * j / d)); return Math.cos(pos / Math.pow(10000, 2 * (j - 256) / d)); }
+      function peImage(rows) {
+        const cv = document.createElement('canvas'); cv.width = 512; cv.height = rows;
+        const cx = cv.getContext('2d'), im = cx.createImageData(512, rows);
+        for (let r = 0; r < rows; r++)for (let j = 0; j < 512; j++) {
+          const v = PE(r, j), c = hex(v >= 0 ? '#c0392b' : '#2c6fbb'), t = Math.abs(v), k = (r * 512 + j) * 4;
+          im.data[k] = 255 + (c[0] - 255) * t; im.data[k + 1] = 255 + (c[1] - 255) * t; im.data[k + 2] = 255 + (c[2] - 255) * t; im.data[k + 3] = 255;
+        }
+        cx.putImageData(im, 0, 0); return cv.toDataURL();
+      }
+
+      /* ---------- defs ---------- */
+      const defs = E('defs', {}, svg);
+      const hp = E('pattern', { id: 'hatch', width: 6, height: 6, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(45)' }, defs);
+      E('rect', { width: 6, height: 6, fill: '#e2e2e2' }, hp); E('line', { x1: 0, y1: 0, x2: 0, y2: 6, stroke: '#c4c4c4', 'stroke-width': 2 }, hp);
+      const world = E('g', {}, svg);
+
+      /* ---------- geometry ---------- */
+      const DX = 520, BW = 220;
+      const box = (cx, y1, y2) => ({ x: cx - BW / 2, y: y1, w: BW, h: y2 - y1 });
+
+      /* ===================== DETAIL DRAWINGS ===================== */
+      function drawEmb(g, o) { // 820×420
+        const n = o.t.length, y0 = 78, rh = Math.min(36, 300 / n);
+        T(g, 24, 40, o.title, 22, { w: 700 });
+        M(g, 415, 60, '$E$: vocab × $d$ (58,101 × 512)', 14, { a: 'middle', c: '#555' });
+        M(g, 624, 60, '$\\times\\sqrt{d}\\;\\to\\;X$: $n \\times d$', 14, { a: 'middle', c: '#555' });
+        T(g, 30, 62, 'token', 13, { c: '#777' }); T(g, 236, 62, 'ID', 13, { a: 'end', c: '#777' });
+        const tx = 360, ty = 72, th = 310;
+        E('rect', { x: tx, y: ty, width: 110, height: th, fill: '#fdeef0', stroke: '#555', 'stroke-width': 1 }, g);
+        for (let k = 1; k < 31; k++)E('line', { x1: tx, x2: tx + 110, y1: ty + k * th / 31, y2: ty + k * th / 31, stroke: '#f3cfd5', 'stroke-width': 0.6 }, g);
+        T(g, 624, y0 + n * rh + 14, n + ' × 512', 12, { a: 'middle', c: '#777' });
+        o.t.forEach((t, i) => {
+          const ry = y0 + i * rh + rh / 2, iy = ty + th * o.id[i] / VOCAB;
+          T(g, 30, ry + 5, t, 15, { mono: 1 });
+          T(g, 236, ry + 5, String(o.id[i]), 15, { a: 'end', mono: 1 });
+          E('path', { d: `M242 ${ry} C 300 ${ry}, 300 ${iy}, ${tx} ${iy}`, fill: 'none', stroke: '#c06070', 'stroke-width': 1, 'stroke-opacity': 0.6 }, g);
+          E('rect', { x: tx, y: iy - 1.6, width: 110, height: 3.2, fill: '#c2255c' }, g);
+          E('path', { d: `M${tx + 110} ${iy} C 520 ${iy}, 520 ${ry}, 556 ${ry}`, fill: 'none', stroke: '#c06070', 'stroke-width': 1, 'stroke-opacity': 0.6 }, g);
+          grid(g, 560, ry - rh * 0.36, 1, 16, 8, rh * 0.72, C.X, o.id[i] % 997, [o.id[i] % 997]);
+        });
+        M(g, 24, 404, o.cap, 15, { c: '#444' });
+      }
+      function drawPE(g, o) { // 820×420
+        const n = o.t.length, ch = 18, y0 = 74;
+        T(g, 24, 40, o.title, 22, { w: 700 });
+        o.t.forEach((t, i) => T(g, 100, y0 + i * ch + 13, i + ' ' + t, 11.5, { a: 'end', mono: 1 }));
+        grid(g, 106, y0, n, 12, 8, ch, C.X, 0, o.id.map(v => v % 997));
+        T(g, 222, y0 + n * ch / 2 + 8, '+', 26, { a: 'middle', w: 700 });
+        E('image', { href: peImage(n), x: 240, y: y0, width: 320, height: n * ch, preserveAspectRatio: 'none', style: 'image-rendering:pixelated' }, g);
+        E('rect', { x: 240, y: y0, width: 320, height: n * ch, fill: 'none', stroke: '#555', 'stroke-width': 1 }, g);
+        T(g, 580, y0 + n * ch / 2 + 8, '=', 26, { a: 'middle', w: 700 });
+        grid(g, 600, y0, n, 12, 8, ch, '#b06aa8', 3, o.id.map((v, i) => v % 997 + i * 17));
+        M(g, 154, y0 + n * ch + 20, '$X$: $n \\times d$', 13, { a: 'middle', c: '#555' });
+        M(g, 400, y0 + n * ch + 20, '$\\text{PE}$: $n \\times d$ (one row per position)', 13, { a: 'middle', c: '#555' });
+        M(g, 648, y0 + n * ch + 20, '$X + \\text{PE}$', 13, { a: 'middle', c: '#555' });
+        const by = 252 + Math.max(0, n - 7) * 18, bh = 100;
+        E('image', { href: peImage(64), x: 240, y: by, width: 520, height: bh, preserveAspectRatio: 'none', style: 'image-rendering:pixelated' }, g);
+        E('rect', { x: 240, y: by, width: 520, height: bh, fill: 'none', stroke: '#555', 'stroke-width': 1 }, g);
+        E('line', { x1: 500, x2: 500, y1: by - 4, y2: by + bh + 4, stroke: '#333', 'stroke-dasharray': '3 3' }, g);
+        T(g, 234, by + 10, 'pos 0', 11, { a: 'end', c: '#555' }); T(g, 234, by + bh, 'pos 63', 11, { a: 'end', c: '#555' });
+        T(g, 240, by + bh + 14, 'dim 0', 11, { c: '#555' }); T(g, 500, by + bh + 14, '256', 11, { a: 'middle', c: '#555' }); T(g, 760, by + bh + 14, '511 = d − 1', 11, { a: 'end', c: '#555' });
+        T(g, 370, by - 8, 'sine', 13, { a: 'middle', c: '#555', i: 1 }); T(g, 630, by - 8, 'cosine', 13, { a: 'middle', c: '#555', i: 1 });
+        ['Low dimensions:', 'short wavelength', '', 'High dimensions:', 'long wavelength', '', 'Each position has', 'a unique pattern'].forEach((s, i) => T(g, 24, by + 12 + i * 15, s, 13.5, { c: '#333' }));
+        T(g, 24, 410, 'These values are fixed, not learned. Red = +1, blue = −1.', 15, { c: '#444' });
+      }
+      function drawSH(g, o) { // 900×500
+        const n = o.qT.length, m = o.kT.length;
+        const P = k => E('g', { class: 'part part-' + k }, g);
+        const pp = P('proj'), ps = P('score'), po = P('out');
+        const nq = o.cross ? 'n_\\text{dec}' : 'n', nk = o.cross ? 'n_\\text{enc}' : 'n';
+        T(g, 24, 38, o.title, 22, { w: 700 });
+        M(g, 876, 40, '$\\text{Attention}(Q,K,V)=\\text{softmax}\\!\\left(\\dfrac{QK^\\top}{\\sqrt{d_k}}\\right)V$', 15, { a: 'end', c: '#444' });
+        const ch = 12, cw = 10;
+        const yQ = 70, yK = o.cross ? 246 : 205, yV = o.cross ? 364 : 340;
+        const gm = (y, r) => y + r * ch / 2;
+        let srcQ, srcK, srcV;
+        if (!o.cross) {
+          const xy = 200, xh = 16;
+          o.qT.forEach((t, i) => T(pp, 84, xy + i * xh + 12, t, 11, { a: 'end', mono: 1 }));
+          grid(pp, 90, xy, n, 12, 8, xh, C.X, 5);
+          M(pp, 138, xy + n * xh + 18, '$X$: $n \\times d$', 13, { a: 'middle', c: '#555' });
+          srcQ = srcK = srcV = [186, xy + n * xh / 2];
+        } else {
+          const yy = yQ, my = 310;
+          o.qT.forEach((t, i) => T(pp, 84, yy + i * ch + 10, t, 10, { a: 'end', mono: 1 }));
+          grid(pp, 90, yy, n, 12, 8, ch, '#b06aa8', 9);
+          M(pp, 138, yy + n * ch + 16, '$Y$ (decoder): $n_\\text{dec} \\times d$', 12, { a: 'middle', c: '#555' });
+          o.kT.forEach((t, i) => T(pp, 84, my + i * ch + 10, t, 10, { a: 'end', mono: 1 }));
+          grid(pp, 90, my, m, 12, 8, ch, '#5b8bd0', 11);
+          M(pp, 186, my + m * ch + 16, '$M$ (encoder output): $n_\\text{enc} \\times d$', 12, { a: 'end', c: '#555' });
+          srcQ = [186, yy + n * ch / 2]; srcK = srcV = [186, my + m * ch / 2];
+        }
+        [['Q', yQ, n, srcQ, C.Q, nq, 'k'], ['K', yK, m, srcK, C.K, nk, 'k'], ['V', yV, m, srcV, C.V, nk, 'v']].forEach(([nm, y, rows, src, col, nn, sub], k) => {
+          const mid = gm(y, rows);
+          grid(pp, 215, mid - 26, 6, 4, 10, 52 / 6, '#8e7fd0', 20 + k);
+          M(pp, 235, mid - 36, '$W_' + nm + '$', 15, { a: 'middle' });
+          M(pp, 235, mid + 40, '$d \\times d_' + sub + '$', 11, { a: 'middle', c: '#666' });
+          arr(pp, [src, [211, mid]], { c: '#888', w: 1.2, s: 7 });
+          arr(pp, [[257, mid], [296, mid]], { c: '#444', s: 7 });
+          grid(pp, 300, y, rows, 4, cw, ch, col, 30 + k);
+          M(pp, 320, y - 10, '$' + nm + '$: $' + nn + ' \\times d_' + sub + '$', 12, { a: 'middle', c: col, w: 600 });
+        });
+        const x0 = 470, y0 = 175, cs = 26;
+        M(ps, x0 + m * cs / 2, 96, '$\\text{softmax}\\!\\left(QK^\\top / \\sqrt{d_k}\\right)$', 16, { a: 'middle' });
+        arr(ps, [[344, gm(yQ, n)], [x0 + m * cs / 2 - 100, 92]], { c: C.Q, w: 1.4, s: 7 });
+        arr(ps, [[344, gm(yK, m)], [x0 + m * cs / 2 - 100, 100]], { c: C.K, w: 1.4, s: 7 });
+        o.kT.forEach((t, j) => T(ps, x0 + j * cs + 15, y0 - 6, t, 11, { mono: 1, rot: -45 }));
+        o.qT.forEach((t, i) => T(ps, x0 - 6, y0 + i * cs + 17, t, 11, { a: 'end', mono: 1 }));
+        heat(ps, x0, y0, o.A, cs, o.mask);
+        if (o.row != null) E('rect', { x: x0 - 3, y: y0 + o.row * cs - 2, width: m * cs + 6, height: cs + 4, fill: 'none', stroke: C.acc, 'stroke-width': 2.5, rx: 3 }, ps);
+        M(ps, x0 + m * cs / 2, y0 + n * cs + 20, 'weights: $' + nq + ' \\times ' + nk + '$, each row sums to 1', 13, { a: 'middle', c: '#555' });
+        if (o.mask) M(ps, x0 + m * cs / 2, y0 + n * cs + 38, 'grey = masked ($-\\infty$ before softmax)', 13, { a: 'middle', c: '#555' });
+        M(g, 24, 462, '$' + (o.cross ? 'n_\\text{dec} = ' + n + ',\\; n_\\text{enc} = ' + m : 'n = ' + n) + '$ tokens, model dimension $d = 512$, head dimensions $d_k = d_v = 64$', 13, { c: '#555' });
+        T(ps, 24, 490, o.note, 15, { c: C.acc, w: 600 });
+        const zx = 790;
+        arr(po, [[x0 + m * cs + 6, y0 + n * cs / 2], [zx - 6, y0 + n * cs / 2]], { c: '#444', s: 8 });
+        M(po, (x0 + m * cs + zx) / 2, y0 + n * cs / 2 - 12, '$\\times\\,V$', 16, { a: 'middle' });
+        E('path', { d: `M344 ${gm(yV, m)} H${(x0 + m * cs + zx) / 2} V${y0 + n * cs / 2 + 2}`, fill: 'none', stroke: C.V, 'stroke-width': 1.4 }, po);
+        grid(po, zx, y0, n, 4, 12, cs, '#7a6bc4', 44);
+        M(po, zx + 24, y0 - 12, '$Z$: $' + nq + ' \\times d_v$', 13, { a: 'middle', w: 600 });
+        M(po, zx + 24, y0 + n * cs + 20, 'one row per token', 12, { a: 'middle', c: '#555' });
+      }
+      function drawMH(g, o) { // 760×520
+        T(g, 24, 38, o.title, 20, { w: 700 });
+        M(g, 24, 60, '$h = 8$ heads in parallel', 14, { c: '#555' });
+        arr(g, [[380, 64], [380, 18]], { s: 8 });
+        M(g, 392, 30, 'output: $n \\times d$', 13, { c: '#555' });
+        E('rect', { x: 200, y: 64, width: 360, height: 30, rx: 5, fill: C.lin, stroke: '#333', 'stroke-width': 1.4 }, g);
+        M(g, 380, 84, 'Linear $W_O$: $h d_v \\times d$ (512 × 512)', 14, { a: 'middle' });
+        arr(g, [[380, 112], [380, 96]], { s: 7 });
+        E('rect', { x: 200, y: 112, width: 360, height: 26, rx: 5, fill: '#f3e3a3', stroke: '#333', 'stroke-width': 1.4 }, g);
+        M(g, 380, 130, 'Concat: $n \\times h d_v$ ($8 \\times 64 = 512$)', 13, { a: 'middle' });
+        arr(g, [[380, 158], [380, 140]], { s: 7 });
+        let card0;
+        const og = grp(o.lblId.replace('_lbl', '_oth'), g); og.dataset.det = o.lblId.replace('_lbl', '_det');
+        o.heads.forEach((A, k) => {
+          const r = Math.floor(k / 4), c = k % 4, x = 34 + c * 178, y = 158 + r * 100;
+          E('rect', { x, y, width: 170, height: 92, rx: 6, fill: '#fff3e4', stroke: k === 0 ? C.acc : '#c98a3d', 'stroke-width': k === 0 ? 2.5 : 1.2 }, k === 0 ? g : og);
+          const lg = k === 0 ? grp(o.lblId, g) : og;
+          T(lg, x + 10, y + 22, 'head ' + (k + 1), 14, { w: 600 });
+          const cs = Math.floor(74 / Math.max(A.length, A[0].length));
+          heat(lg, x + 170 - 8 - A[0].length * cs, y + (92 - A.length * cs) / 2, A, cs, o.mask);
+          if (k === 0) card0 = { x, y, w: 170, h: 92 };
+        });
+        E('rect', { x: 34, y: 372, width: 692, height: 30, rx: 5, fill: C.lin, stroke: '#333', 'stroke-width': 1.4 }, g);
+        M(g, 380, 392, 'Linear: $W_Q^{(i)},\\,W_K^{(i)},\\,W_V^{(i)}$ for each head $i$: $d \\to d_k = d/h = 64$', 14, { a: 'middle' });
+        arr(g, [[380, 372], [380, 354]], { s: 7 });
+        [['V', 300], ['K', 380], ['Q', 460]].forEach(([nm, x]) => { arr(g, [[x, 466], [x, 404]], { s: 7 }); M(g, x, 484, '$' + nm + '$', 16, { a: 'middle' }); });
+        if (o.cross) {
+          E('path', { d: 'M300 466 H380', stroke: '#444', 'stroke-width': 1.6 }, g);
+          M(g, 340, 508, 'from the encoder output ($n_\\text{enc} \\times d$)', 13, { a: 'middle', c: '#555' });
+          M(g, 490, 508, 'from the decoder ($n_\\text{dec} \\times d$)', 13, { a: 'start', c: '#555' });
+        } else {
+          E('path', { d: 'M300 466 H460', stroke: '#444', 'stroke-width': 1.6 }, g);
+          M(g, 380, 508, 'all three from the same input $X$ ($n \\times d$)', 13, { a: 'middle', c: '#555' });
+        }
+        return card0;
+      }
+      function drawAN(g) { // 1050×134, same proportions as the Add & Norm box
+        T(g, 22, 36, 'Add & Norm', 24, { w: 700 });
+        M(g, 22, 68, '$\\mathrm{LayerNorm}\\big(\\mathbf{x} + \\mathrm{Sublayer}(\\mathbf{x})\\big)$', 19);
+        T(g, 22, 98, 'residual “add”, then normalise', 15, { c: '#555' });
+        T(g, 22, 120, 'orange arrow: x bypasses the sublayer', 14, { c: C.acc });
+        const v = []; for (let i = 0; i < 16; i++)v.push(0.9 + 1.6 * (rnd(i, 3, 8) - 0.5) * 2);
+        const mu = v.reduce((a, b) => a + b) / 16, sd = Math.sqrt(v.reduce((a, b) => a + (b - mu) * (b - mu), 0) / 16), nv = v.map(x => (x - mu) / sd);
+        const base = 66;
+        const bars = (x0, vals, sc, col) => {
+          E('line', { x1: x0 - 4, x2: x0 + 16 * 15, y1: base, y2: base, stroke: '#999' }, g);
+          vals.forEach((x, i) => E('rect', { x: x0 + i * 15, y: x >= 0 ? base - x * sc : base, width: 11, height: Math.abs(x * sc), fill: col }, g));
+        };
+        bars(370, v, 17, '#a5a5a5'); M(g, 490, 122, '$\\mathbf{x} + \\mathrm{Sublayer}(\\mathbf{x})$: one token, 16 of $d$ dims', 14, { a: 'middle', c: '#555' });
+        arr(g, [[618, 66], [668, 66]], { s: 9 }); T(g, 643, 54, 'norm', 14, { a: 'middle', c: '#555' });
+        bars(690, nv, 17, '#b9b63a'); M(g, 810, 122, 'mean 0, variance 1, then $\\times\\gamma + \\beta$', 14, { a: 'middle', c: '#555' });
+      }
+      function drawFFN(g) { // 900×240
+        T(g, 20, 32, 'Position-wise feed-forward network', 20, { w: 700 });
+        T(g, 880, 32, 'same weights for every token position', 14, { a: 'end', c: '#555', i: 1 });
+        const L = [[120, 8, 18], [450, 16, 9], [780, 8, 18]], pts = L.map(([x, k, sp]) => { const a = []; for (let i = 0; i < k; i++)a.push([x, 130 - (k - 1) * sp / 2 + i * sp]); return a; });
+        const lg = E('g', { stroke: '#8fbfd4', 'stroke-width': 0.5, 'stroke-opacity': 0.7 }, g);
+        for (let l = 0; l < 2; l++)pts[l].forEach(a => pts[l + 1].forEach(b => E('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1] }, lg)));
+        pts.forEach((ps, l) => ps.forEach(([x, y]) => E('circle', { cx: x, cy: y, r: l === 1 ? 3.6 : 5, fill: C.ffn, stroke: '#2d6b88', 'stroke-width': 1.2 }, g)));
+        M(g, 120, 222, '$d = 512$', 15, { a: 'middle', w: 600 }); M(g, 450, 222, '$d_{ff} = 2048$, then SiLU', 15, { a: 'middle', w: 600 }); M(g, 780, 222, '$d = 512$', 15, { a: 'middle', w: 600 });
+        M(g, 285, 60, 'fc1: Linear $d \\to d_{ff}$', 14, { a: 'middle', c: '#2d6b88' }); M(g, 615, 60, 'fc2: Linear $d_{ff} \\to d$', 14, { a: 'middle', c: '#2d6b88' });
+      }
+
+      /* ===================== WORLD ===================== */
+      /* layer 0: brackets */
+      function bracket(id, cx, y1, y2) { const g = grp(id); R[id] = { x: cx - 155, y: y1, w: 310, h: y2 - y1 }; E('rect', { x: cx - 155, y: y1, width: 310, height: y2 - y1, rx: 20, fill: C.br, stroke: '#222', 'stroke-width': 2.4 }, g); return g; }
+      bracket('e_br', 0, 600, 890);
+      bracket('d_br', DX, 450, 890);
+
+      /* layer 1: wires */
+      let g;
+      g = grp('e_w_in'); wire(g, [[0, 1030], [0, 994]]);
+      g = grp('e_w_lo'); wire(g, [[0, 950], [0, 931]]); wire(g, [[0, 909], [0, 890]]);
+      g = grp('e_w_top'); wire(g, [[0, 600], [0, 574]]);
+      g = grp('e_w_head1'); wire(g, [[0, 536], [0, 510]]); wire(g, [[0, 480], [0, 462]]);
+      g = grp('e_w_out'); wire(g, [[0, 432], [0, 419]]);
+      g = grp('e_subs');
+      wire(g, [[0, 890], [0, 836]]); wire(g, [[0, 864], [-70, 864], [-70, 836]]); wire(g, [[0, 864], [70, 864], [70, 836]]);
+      wire(g, [[0, 878], [-135, 878], [-135, 752], [-110, 752]]);
+      wire(g, [[0, 776], [0, 766]], { head: false }); wire(g, [[0, 738], [0, 706]]);
+      wire(g, [[0, 722], [-135, 722], [-135, 626], [-110, 626]]);
+      wire(g, [[0, 650], [0, 640]], { head: false }); wire(g, [[0, 612], [0, 600]], { head: false });
+
+      g = grp('d_w_in'); wire(g, [[DX, 1030], [DX, 994]]);
+      g = grp('d_w_lo'); wire(g, [[DX, 950], [DX, 931]]); wire(g, [[DX, 909], [DX, 890]]);
+      g = grp('d_w_top1'); wire(g, [[DX, 450], [DX, 421]]); wire(g, [[DX, 390], [DX, 366]]);
+      g = grp('d_w_out'); wire(g, [[DX, 335], [DX, 322]]);
+      g = grp('d_subs');
+      wire(g, [[DX, 890], [DX, 836]]); wire(g, [[DX, 864], [DX - 70, 864], [DX - 70, 836]]); wire(g, [[DX, 864], [DX + 70, 864], [DX + 70, 836]]);
+      wire(g, [[DX, 878], [DX + 135, 878], [DX + 135, 752], [DX + 110, 752]]);
+      wire(g, [[DX, 776], [DX, 766]], { head: false });
+      wire(g, [[DX, 738], [DX, 710], [DX + 70, 710], [DX + 70, 686]]);
+      wire(g, [[DX, 726], [DX + 135, 726], [DX + 135, 602], [DX + 110, 602]]);
+      wire(g, [[DX, 626], [DX, 616]], { head: false }); wire(g, [[DX, 588], [DX, 556]]);
+      wire(g, [[DX, 572], [DX + 135, 572], [DX + 135, 476], [DX + 110, 476]]);
+      wire(g, [[DX, 500], [DX, 490]], { head: false }); wire(g, [[DX, 462], [DX, 450]], { head: false });
+
+      const XW = [[0, 536], [0, 515], [262, 515], [262, 700]];
+      g = grp('x_mono'); wire(g, [...XW, [DX - 155, 700]], { c: '#2b4f8a' });
+      g = grp('x_box'); wire(g, [...XW, [DX - 125, 700]], { c: '#2b4f8a' });
+      g = grp('x_sub'); wire(g, [...XW, [DX - 70, 700], [DX - 70, 686]], { c: '#2b4f8a' }); wire(g, [[DX - 70, 700], [DX - 20, 700], [DX - 20, 686]], { c: '#2b4f8a' });
+
+      g = grp('x_lbls'); label(g, DX - 147, 713, 'K, V from encoder', 10.5, { a: 'start', c: '#2b4f8a', w: 600, mx: 14 }); label(g, DX + 76, 696, 'Q', 10.5, { a: 'start', c: '#222', w: 600, mx: 14 });
+      g = grp('e_res_hl'); wire(g, [[0, 878], [-135, 878], [-135, 752], [-110, 752]], { c: C.acc, w: 4 });
+      g = grp('d_res_hl'); wire(g, [[DX, 878], [DX + 135, 878], [DX + 135, 752], [DX + 110, 752]], { c: C.acc, w: 4 });
+      g = grp('x_stack'); {
+        const gap = (414 - 6 * 40) / 5, ys = [0, 1, 2, 3, 4, 5].map(k => 876 - k * (40 + gap) - 20);
+        wire(g, [[0, 536], [0, 515], [262, 515], [262, ys[0]]], { c: '#2b4f8a', head: false });
+        ys.forEach(y => wire(g, [[262, y], [DX - 117, y]], { c: '#2b4f8a' }));
+      }
+      g = grp('g_w'); wire(g, [[DX, 1030], [DX, 994]]); wire(g, [[DX, 335], [DX, 322]]);
+
+      /* layer 2: nodes */
+      // tokens
+      let ch = chips(world, 0, 1030, ENC_T);
+      g = grp('e_in'); ENC_T.forEach((t, i) => drawChip(g, ch.pos[i], t, ch.fs, 1030));
+      g = grp('e_mask'); drawChip(g, ch.pos[2], '[MASK]', 11, 1030, '#ffe3c7');
+      g = grp('e_inlbl'); label(g, 0, 1076, 'Inputs', 16);
+      ch = chips(world, DX, 1030, DEC_T);
+      g = grp('d_in'); DEC_T.slice(0, 3).forEach((t, i) => drawChip(g, ch.pos[i], t, ch.fs, 1030));
+      g = grp('d_in2'); DEC_T.slice(3).forEach((t, i) => drawChip(g, ch.pos[i + 3], t, ch.fs, 1030));
+      g = grp('d_inlbl'); label(g, DX, 1076, 'Outputs (shifted right)', 16);
+      ch = chips(world, DX, 1030, ['The', 'cat', 'sat', 'on', 'the']);
+      g = grp('g_in');['The', 'cat', 'sat', 'on', 'the'].forEach((t, i) => drawChip(g, ch.pos[i], t, ch.fs, 1030));
+      g = grp('g_inlbl'); label(g, DX, 1076, 'Inputs (text so far)', 16);
+
+      // embeddings
+      node('e_emb', -110, 950, BW, 44, C.emb, ['Input', 'Embedding']);
+      let d = detail('e_emb_det', G.e_emb, W0, R.e_emb, 820, 420);
+      drawEmb(d.g, { t: ENC_T, id: ENC_ID, title: 'Input embedding: a lookup table', cap: 'Each ID selects one learned row of length $d$. Both `▁the`s get identical vectors; context comes later.' });
+      node('d_emb', DX - 110, 950, BW, 44, C.emb, ['Output', 'Embedding']);
+      d = detail('d_emb_det', G.d_emb, W0, R.d_emb, 820, 420);
+      drawEmb(d.g, { t: DEC_T, id: DEC_ID, title: 'Output embedding: the same shared table', cap: 'Shifted right: the input starts with `<pad>` (the start token), so position $i$ predicts token $i+1$.' });
+
+      // positional encodings
+      function peNode(id, cx, side, t, ids) {
+        const g = grp(id); R[id] = { x: cx + (side < 0 ? -170 : -15), y: 900, w: 185, h: 40 };
+        oplus(g, cx, 920, 10);
+        const lg = grp(id + '_lbl', g);
+        E('line', { x1: cx + side * 10, x2: cx + side * 33, y1: 920, y2: 920, stroke: '#222', 'stroke-width': 2 }, lg);
+        sine(lg, cx + side * 48, 920, 15);
+        label(lg, cx + side * 72, 920, ['Positional', 'Encoding'], 13, { a: side < 0 ? 'end' : 'start' });
+        const d = detail(id + '_det', g, W0, { x: cx - 110, y: 897, w: 220, h: 46 }, 820, 420);
+        drawPE(d.g, { t, id: ids, title: 'Positional encoding: add a position signal' });
+      }
+      peNode('e_pe', 0, -1, ENC_T, ENC_ID);
+      peNode('d_pe', DX, 1, DEC_T, DEC_ID);
+
+      // encoder sublayers
+      node('e_mha', -110, 776, BW, 60, C.mha, ['Multi-Head', 'Attention']);
+      d = detail('e_mha_det', G.e_mha, W0, R.e_mha, 760, 520);
+      let c0 = drawMH(d.g, { title: 'Multi-head attention', heads: DATA.enc_heads, n: 7, lblId: 'e_sh_lbl' });
+      let s = detail('e_sh_det', d.g, d.f, c0, 900, 500, 2);
+      s.outer.classList.add('hlwrap');
+      drawSH(s.g, {
+        qT: ENC_T, kT: ENC_T, A: DATA.enc_heads[DATA.enc_head], title: 'One attention head', row: 4,
+        note: 'Row `▁the` (5th token): 98% of its attention goes to `▁mat`.'
+      });
+      node('e_an1', -110, 738, BW, 28, C.an, 'Add & Norm', 14);
+      d = detail('e_an1_det', G.e_an1, W0, R.e_an1, 1050, 134, 0.6); drawAN(d.g);
+      node('e_ffn', -110, 650, BW, 56, C.ffn, ['Feed', 'Forward']);
+      d = detail('e_ffn_det', G.e_ffn, W0, R.e_ffn, 900, 240); drawFFN(d.g);
+      node('e_an2', -110, 612, BW, 28, C.an, 'Add & Norm', 14);
+
+      // decoder sublayers
+      node('d_mmha', DX - 110, 776, BW, 60, C.mha, ['Masked', 'Multi-Head', 'Attention'], 13.5);
+      d = detail('d_mmha_det', G.d_mmha, W0, R.d_mmha, 760, 520);
+      c0 = drawMH(d.g, { title: 'Masked multi-head attention', heads: DATA.dec_heads, n: 8, mask: true, lblId: 'd_sh_lbl' });
+      s = detail('d_sh_det', d.g, d.f, c0, 900, 500, 2);
+      drawSH(s.g, {
+        qT: DEC_T, kT: DEC_T, A: DATA.dec_heads[DATA.dec_head], mask: true, title: 'One masked attention head', row: 5,
+        note: 'Row `▁der`: 80% of its attention goes to the previous token, `▁auf`.'
+      });
+      node('d_an1', DX - 110, 738, BW, 28, C.an, 'Add & Norm', 14);
+      d = detail('d_an1_det', G.d_an1, W0, R.d_an1, 1050, 134, 0.6); drawAN(d.g);
+      node('d_xattn', DX - 110, 626, BW, 60, C.mha, ['Multi-Head', 'Attention']);
+      d = detail('d_xattn_det', G.d_xattn, W0, R.d_xattn, 760, 520);
+      c0 = drawMH(d.g, { title: 'Cross-attention', heads: DATA.x_heads, n: 8, cross: true, lblId: 'd_xsh_lbl' });
+      s = detail('d_xsh_det', d.g, d.f, c0, 900, 500, 2);
+      drawSH(s.g, {
+        qT: DEC_T, kT: ENC_T, A: DATA.x_heads[DATA.x_head], cross: true, title: 'One cross-attention head', row: 1,
+        note: 'At `▁die` (about to output `▁Katze`) the decoder looks at `▁cat`: 98%.'
+      });
+      node('d_an2', DX - 110, 588, BW, 28, C.an, 'Add & Norm', 14);
+      node('d_ffn', DX - 110, 500, BW, 56, C.ffn, ['Feed', 'Forward']);
+      d = detail('d_ffn_det', G.d_ffn, W0, R.d_ffn, 900, 240); drawFFN(d.g);
+      node('d_an3', DX - 110, 462, BW, 28, C.an, 'Add & Norm', 14);
+
+      // collapsed layer boxes and stacks
+      function layerbox(id, cx, y1, y2, name, sub) {
+        const g = grp(id); R[id] = { x: cx - 125, y: y1, w: 250, h: y2 - y1 };
+        wire(g, [[cx, 890], [cx, y2]]); wire(g, [[cx, y1], [cx, y1 - 12]], { head: false });
+        const gr = E('linearGradient', { id: id + '_gr', x1: 0, y1: 1, x2: 0, y2: 0 }, defs);
+        E('stop', { offset: '0', 'stop-color': C.mha }, gr); E('stop', { offset: '0.5', 'stop-color': '#fbefd9' }, gr); E('stop', { offset: '1', 'stop-color': C.ffn }, gr);
+        E('rect', { x: cx - 125, y: y1, width: 250, height: y2 - y1, rx: 10, fill: `url(#${id}_gr)`, stroke: '#222', 'stroke-width': 2.4 }, g);
+        label(g, cx, (y1 + y2) / 2 - 10, name, 19, { w: 600, mx: 20 });
+        label(g, cx, (y1 + y2) / 2 + 14, sub, 12, { c: '#444', mx: 14 });
+      }
+      layerbox('e_layerbox', 0, 612, 876, 'Encoder layer', 'self-attention → feed-forward');
+      layerbox('d_layerbox', DX, 462, 876, 'Decoder layer', 'masked self-attn → cross-attn → FF');
+      function stack(id, cx, y1, y2, bh, name) {
+        const g = grp(id), gap = ((y2 - y1) - 6 * bh) / 5;
+        wire(g, [[cx, 890], [cx, y2]]);
+        for (let k = 0; k < 6; k++) {
+          const yb = y2 - k * (bh + gap) - bh;
+          E('rect', { x: cx - 115, y: yb, width: 230, height: bh, rx: 7, fill: '#fbe7cf', stroke: '#222', 'stroke-width': 2 }, g);
+          label(g, cx, yb + bh / 2, name + ' ' + (k + 1), 13, { mx: 15 });
+          if (k < 5) wire(g, [[cx, yb], [cx, yb - gap]]); else wire(g, [[cx, yb], [cx, y1 - 12]], { head: false });
+        }
+      }
+      stack('e_stack', 0, 612, 876, 28, 'Encoder layer');
+      stack('d_stack', DX, 462, 876, 40, 'Decoder layer');
+      g = grp('e_nx'); label(g, -200, 745, 'N×', 28, { w: 400, mx: 30 });
+      g = grp('d_nx'); label(g, DX + 205, 670, 'N×', 28, { w: 400, mx: 30 });
+
+      // encoder output (hidden states)
+      g = grp('e_hs'); R.e_hs = { x: -80, y: 536, w: 160, h: 38 };
+      for (let i = 0; i < 7; i++) {
+        const x = -72 + i * 22; for (let r = 0; r < 5; r++)E('rect', { x, y: 537 + r * 7.2, width: 12, height: 7.2, fill: mix('#ffffff', '#2f6fbf', 0.25 + 0.7 * rnd(i, r, 77)), stroke: '#fff', 'stroke-width': 0.5 }, g);
+        E('rect', { x, y: 537, width: 12, height: 36, fill: 'none', stroke: '#335', 'stroke-width': 1 }, g);
+      }
+      label(g, -90, 555, ['encoder output', 'n × d = 7 × 512'], 11, { a: 'end', c: '#2b4f8a', mx: 14 });
+
+      // heads
+      node('e_lin', -110, 480, BW, 30, C.lin, 'Linear', 14);
+      node('e_sm', -110, 432, BW, 30, C.sm, 'Softmax', 14);
+      g = grp('e_head'); R.e_head = { x: -110, y: 432, w: BW, h: 78 };
+      E('rect', { x: -110, y: 432, width: BW, height: 78, rx: 8, fill: '#e7e1f5', stroke: '#222', 'stroke-width': 2.4 }, g);
+      label(g, 0, 463, 'Task head', 16, { w: 600 }); label(g, 0, 484, '(e.g. masked LM)', 11.5, { c: '#444', mx: 14 });
+      g = grp('e_head_notes'); label(g, 120, 495, ['d → vocab', '(BERT-base: 768 → 30,522)'], 10.5, { a: 'start', c: '#444', mx: 14 }); label(g, 120, 447, '→ probabilities', 10.5, { a: 'start', c: '#444', mx: 14 });
+      g = grp('d_head_notes'); label(g, DX + 120, 405, ['d → vocab: 512 → 58,101', '(tied to the embedding)'], 10.5, { a: 'start', c: '#444', mx: 14 }); label(g, DX + 120, 350, ['→ probabilities', '(sum to 1)'], 10.5, { a: 'start', c: '#444', mx: 14 });
+      node('d_lin', DX - 110, 390, BW, 30, C.lin, 'Linear', 14);
+      node('d_sm', DX - 110, 335, BW, 30, C.sm, 'Softmax', 14);
+
+      function bars(id, cx, y, title, sub, rows) {
+        const g = grp(id); R[id] = { x: cx - 110, y: y - 4, w: BW, h: 100 };
+        label(g, cx, y + 8, title, 13, { w: 700, mx: 16 });
+        if (sub) label(g, cx, y + 23, sub, 10.5, { c: '#555', mx: 13 });
+        const by = y + (sub ? 32 : 20);
+        rows.forEach(([t, p], i) => {
+          const yy = by + i * 12.5;
+          label(g, cx - 18, yy + 5, t.replace(/^ /, ''), 10.5, { a: 'end', mx: 13, w: 400 });
+          E('rect', { x: cx - 12, y: yy, width: Math.max(1, p * 300), height: 9.5, fill: i === 0 ? C.acc : '#9aa5b1', rx: 1.5 }, g);
+          label(g, cx - 8 + p * 300, yy + 5, p.toFixed(3), 9.5, { a: 'start', c: '#444', mx: 12, w: 400 });
+        });
+      }
+      bars('e_pred', 0, 312, 'Prediction at [MASK]', 'bert-base-uncased', BERT);
+      bars('d_pred', DX, 222, 'Output Probabilities', 'next token after ‘▁die ▁Katze’', NEXT);
+      bars('g_pred', DX, 222, 'Next-token probabilities', 'SmolLM2-135M', SMOL);
+
+      // monoliths
+      function mono(id, cx, y1, y2, fill, name, sub) {
+        const g = grp(id); R[id] = { x: cx - 155, y: y1, w: 310, h: y2 - y1 };
+        E('rect', { x: cx - 155, y: y1, width: 310, height: y2 - y1, rx: 18, fill, stroke: '#222', 'stroke-width': 2.6 }, g);
+        label(g, cx, (y1 + y2) / 2 - 12, name, 30, { w: 700, mx: 32 });
+        label(g, cx, (y1 + y2) / 2 + 20, sub, 13, { c: '#444', mx: 16 });
+      }
+      mono('e_mono', 0, 600, 994, C.encM, 'Encoder', 'reads the whole input');
+      mono('d_mono', DX, 335, 994, C.decM, 'Decoder', 'output so far + encoder → next token');
+      mono('g_mono', DX, 335, 994, C.decM, 'Decoder', 'text so far → next token');
+
+      /* highlight layer for the code mapping */
+      const hlLayer = E('g', {}, world);
+      const REG = {
+        ENC: { x: -165, y: 526, w: 330, h: 478 }, DEC: { x: DX - 165, y: 440, w: 330, h: 564 },
+        ALL: { x: -170, y: 215, w: DX + 340, h: 795 }, MODEL: { x: -165, y: 440, w: DX + 330, h: 564 }
+      };
+      function rectOf(id) { return REG[id] || R[id] || DR[id]; }
+
+      /* ===================== STEPS ===================== */
+      const E_IN = ['e_in', 'e_inlbl', 'e_w_in'];
+      const E_OPEN = [...E_IN, 'e_w_lo', 'e_emb', 'e_pe', 'e_br', 'e_w_top', 'e_hs'];
+      const E_SUB = ['e_subs', 'e_mha', 'e_an1', 'e_ffn', 'e_an2'];
+      const E_BOX = ['e_layerbox', 'e_nx'];
+      const E_HM = ['e_head', 'e_w_head1'];
+      const E_HEAD = ['e_lin', 'e_sm', 'e_w_head1', 'e_w_out', 'e_pred'];
+      const D_OPEN = ['d_in', 'd_in2', 'd_inlbl', 'd_w_in', 'd_w_lo', 'd_emb', 'd_pe', 'd_br', 'd_w_top1', 'd_lin', 'd_sm', 'd_w_out', 'd_pred'];
+      const D_SUB = ['d_subs', 'd_mmha', 'd_an1', 'd_xattn', 'd_an2', 'd_ffn', 'd_an3'];
+      const D_BOX = ['d_layerbox', 'd_nx'];
+      const MONO_ED = ['e_in', 'e_inlbl', 'e_w_in', 'e_mono', 'e_w_top', 'e_hs', 'x_mono', 'd_in', 'd_inlbl', 'd_w_in', 'd_mono', 'd_w_out', 'd_pred'];
+      const ENC4 = [...E_OPEN, ...E_SUB, ...E_HM];
+      const ED_SUB = [...E_OPEN, ...E_BOX, ...D_OPEN, ...D_SUB, 'x_sub'];
+      const FULL = { x: -245, y: 208, w: 975, h: 885 }, ENC_COL = { x: -245, y: 300, w: 490, h: 796 }, DEC_COL = { x: DX - 245, y: 208, w: 490, h: 885 };
+      const ENC_CTX = { x: -245, y: 420, w: 490, h: 676 };
+      const SH_PAD = 1.14; // single-head views: leave the orange head card's border in shot
+      /* each step: visible groups, camera, and (for zoomed-in steps) the overview it is reached from */
+      const STEPS = {
+        '1': { on: MONO_ED, cam: FULL },
+        '2': { on: [...E_IN, 'e_mask', 'e_mono', 'e_w_top', 'e_hs', ...E_HM, 'e_w_out', 'e_pred'], cam: ENC_COL },
+        '3': { on: MONO_ED, cam: FULL },
+        '4': { on: ['g_in', 'g_inlbl', 'g_w', 'g_mono', 'g_pred'], cam: DEC_COL },
+        '5': { on: [...ENC4, 'e_emb_det'], cam: 'e_emb_det', ctx: ENC_CTX },
+        '6': { on: [...ENC4, 'e_pe_det'], cam: 'e_pe_det', ctx: ENC_CTX },
+        '7': { on: [...ENC4, 'e_mha_det', 'e_sh_det'], cam: 'e_sh_det', pad: SH_PAD, hl: 'proj', ctx: ENC_CTX },
+        '8': { on: [...ENC4, 'e_mha_det', 'e_sh_det'], cam: 'e_sh_det', pad: SH_PAD, hl: 'score', ctx: ENC_CTX },
+        '9': { on: [...ENC4, 'e_mha_det', 'e_sh_det'], cam: 'e_sh_det', pad: SH_PAD, ctx: ENC_CTX },
+        '10': { on: [...ENC4, 'e_mha_det'], cam: 'e_mha_det', ctx: ENC_CTX },
+        '11': { on: [...ENC4, 'e_an1_det', 'e_res_hl'], cam: ['e_an1_det', { x: -142, y: 745, w: 4, h: 14 }], ctx: ENC_CTX },
+        '12': { on: [...ENC4, 'e_ffn_det'], cam: 'e_ffn_det', ctx: ENC_CTX },
+        '13': { on: [...E_OPEN, 'e_stack', ...E_HM], cam: ENC_CTX },
+        '14': { on: [...E_OPEN, ...E_BOX, ...E_HM], cam: ENC_CTX },
+        '15': { on: [...E_OPEN, ...E_BOX, ...E_HEAD, 'e_mask', 'e_head_notes'], cam: { x: -200, y: 300, w: 460, h: 312 } },
+        '16': { on: [...E_OPEN, ...E_BOX, ...E_HEAD, 'e_mask'], cam: ENC_COL },
+        '17': { on: [...E_OPEN, ...E_BOX, ...D_OPEN, ...D_BOX, 'x_box'], cam: FULL },
+        '18': { on: [...ED_SUB, 'd_emb_det'], cam: 'd_emb_det', ctx: DEC_COL },
+        '19': { on: [...ED_SUB, 'd_pe_det'], cam: 'd_pe_det', ctx: DEC_COL },
+        '20': { on: [...ED_SUB, 'd_mmha_det', 'd_sh_det'], cam: 'd_sh_det', pad: SH_PAD, ctx: DEC_COL },
+        '21': { on: [...ED_SUB, 'd_mmha_det'], cam: 'd_mmha_det', ctx: DEC_COL },
+        '22': { on: [...ED_SUB, 'd_an1_det', 'd_res_hl'], cam: ['d_an1_det', { x: DX + 138, y: 745, w: 4, h: 14 }], ctx: DEC_COL },
+        '23': { on: [...ED_SUB, 'x_lbls'], cam: { x: -90, y: 495, w: 790, h: 290 } },
+        '24': { on: [...ED_SUB, 'd_xattn_det', 'd_xsh_det'], cam: 'd_xsh_det', pad: SH_PAD, ctx: DEC_COL },
+        '25': { on: [...ED_SUB, 'd_ffn_det'], cam: 'd_ffn_det', ctx: DEC_COL },
+        '26': { on: [...E_OPEN, ...E_BOX, ...D_OPEN, 'd_stack', 'x_stack'], cam: DEC_COL },
+        '27': { on: [...E_OPEN, ...E_BOX, ...D_OPEN, ...D_BOX, 'x_box'], cam: DEC_COL },
+        '28': { on: [...E_OPEN, ...E_BOX, ...D_OPEN, ...D_BOX, 'x_box', 'd_head_notes'], cam: { x: DX - 215, y: 212, w: 480, h: 262 } },
+        '29': { on: [...E_OPEN, ...E_SUB, 'e_nx', ...D_OPEN, ...D_SUB, 'd_nx', 'x_sub'], cam: FULL },
+        '30': { on: [...E_OPEN, ...E_SUB, 'e_nx', ...D_OPEN, ...D_SUB, 'd_nx', 'x_sub'], cam: { x: -245, y: 208, w: 975, h: 990 }, map: true }
+      };
+      const isMap = () => !!(STEPS[curKey] && STEPS[curKey].map);
+
+      /* ===================== CAMERA ===================== */
+      let cam = null, anim = 0, curKey = null;
+      function panel() { const b = svg.getBoundingClientRect(); return [Math.max(1, b.width), Math.max(1, b.height)]; }
+      function camRect(spec) {
+        if (typeof spec === 'string') return DR[spec] || R[spec];
+        if (Array.isArray(spec)) {
+          const rs = spec.map(camRect); const x = Math.min(...rs.map(r => r.x)), y = Math.min(...rs.map(r => r.y));
+          return { x, y, w: Math.max(...rs.map(r => r.x + r.w)) - x, h: Math.max(...rs.map(r => r.y + r.h)) - y };
+        }
+        return spec;
+      }
+      function fit(r, pad) { const [W, H] = panel(); return { cx: r.x + r.w / 2, cy: r.y + r.h / 2, w: Math.max(r.w * pad, r.h * pad * W / H) }; }
+      const near = (a, b) => Math.abs(a.cx - b.cx) < 0.02 * b.w && Math.abs(a.cy - b.cy) < 0.02 * b.w && Math.abs(Math.log(a.w / b.w)) < 0.05;
+      function setVB(c) {
+        const [W, H] = panel(), h = c.w * H / W;
+        svg.setAttribute('viewBox', `${c.cx - c.w / 2} ${c.cy - h / 2} ${c.w} ${h}`);
+        const z = W / c.w;
+        for (const q of CS) {
+          const f = Math.min(1, q.mx / (q.fs * z));
+          if (q.rot != null) q.el.setAttribute('transform', `translate(${q.x} ${q.y}) rotate(${q.rot}) scale(${f})`);
+          else q.el.setAttribute('transform', f >= 1 ? '' : `translate(${q.x} ${q.y}) scale(${f}) translate(${-q.x} ${-q.y})`);
+        }
+        drawConn();
+      }
+      /* smooth zoom-and-pan (van Wijk & Nuij), as in d3.interpolateZoom */
+      function zoomInterp(a, b) {
+        const rho = Math.SQRT2, rho2 = 2, rho4 = 4, ux0 = a.cx, uy0 = a.cy, w0 = a.w, ux1 = b.cx, uy1 = b.cy, w1 = b.w, dx = ux1 - ux0, dy = uy1 - uy0, d2 = dx * dx + dy * dy;
+        let S, f;
+        if (d2 < 1e-9) { S = Math.log(w1 / w0) / rho; f = t => ({ cx: ux0 + t * dx, cy: uy0 + t * dy, w: w0 * Math.exp(rho * t * S) }); }
+        else {
+          const d1 = Math.sqrt(d2), b0 = (w1 * w1 - w0 * w0 + rho4 * d2) / (2 * w0 * rho2 * d1), b1 = (w1 * w1 - w0 * w0 - rho4 * d2) / (2 * w1 * rho2 * d1),
+            r0 = Math.log(Math.sqrt(b0 * b0 + 1) - b0), r1 = Math.log(Math.sqrt(b1 * b1 + 1) - b1); S = (r1 - r0) / rho;
+          f = t => {
+            const s = t * S, u = w0 / (rho2 * d1) * (Math.cosh(r0) * Math.tanh(rho * s + r0) - Math.sinh(r0));
+            return { cx: ux0 + u * dx, cy: uy0 + u * dy, w: w0 * Math.cosh(r0) / Math.cosh(rho * s + r0) };
+          };
+        }
+        f.dur = Math.min(2600, Math.max(1000, Math.abs(S) * 800));
+        return f;
+      }
+      const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      let seq = 0;
+      const wait = ms => new Promise(r => setTimeout(r, ms));
+      /* animate the camera; onLate fires part-way through, so new detail fades in as the zoom settles */
+      function moveCam(target, onLate) {
+        return new Promise(res => {
+          cancelAnimationFrame(anim);
+          if (near(cam, target)) { cam = target; setVB(cam); if (onLate) onLate(); res(); return; }
+          const f = zoomInterp(cam, target), t0 = performance.now(), my = seq; let fired = false;
+          const tick = now => {
+            if (my !== seq) { res(); return; }
+            const t = Math.min(1, (now - t0) / f.dur);
+            cam = t >= 1 ? target : f(ease(t)); setVB(cam);
+            if (onLate && !fired && t >= 0.6) { fired = true; onLate(); }
+            if (t < 1) anim = requestAnimationFrame(tick); else { if (onLate && !fired) onLate(); res(); }
+          };
+          anim = requestAnimationFrame(tick);
+        });
+      }
+
+      /* ===================== APPLY STEP ===================== */
+      const badge = document.getElementById('badge'), note = document.getElementById('note');
+      const shown = {};
+      const isDetail = id => /_det$|_lbl$|_oth$|_hl$|_notes$|^x_lbls$/.test(id);
+      const isCover = id => /_lbl$|_oth$/.test(id);
+      function wanted(id, on) { const det = G[id].dataset.det; return det ? !on.has(det) : id.endsWith('_lbl') ? !on.has(id.slice(0, -4) + '_det') : on.has(id); }
+      function show(ids, on) { ids.forEach(id => { const v = wanted(id, on) ? 1 : 0; G[id].style.opacity = v; shown[id] = v; }); }
+      let lastCtx = null;
+      /* Transitions run in stages, so that it stays clear what is happening:
+         1. fade out detail that is going away (and bring back the labels it covered);
+         2. if the structure changes, pull back to the previous overview, then cross-fade the
+            structure while moving at overview level to the new overview;
+         3. zoom to the target, fading in new detail as the zoom settles. */
+      async function transition(st, instant) {
+        const my = ++seq, on = new Set(st.on), ids = Object.keys(G);
+        const tgt = fit(camRect(st.cam), st.pad || 1.07), ctx = fit(camRect(st.ctx || st.cam), 1.07);
+        const changed = id => (wanted(id, on) ? 1 : 0) !== (shown[id] || 0);
+        if (instant || STATIC || !cam) { show(ids, on); cancelAnimationFrame(anim); cam = tgt; setVB(cam); lastCtx = ctx; return; }
+        const out = ids.filter(id => isDetail(id) && changed(id) && (!wanted(id, on) || isCover(id)));
+        if (out.length) { show(out, on); await wait(420); if (my !== seq) return; }
+        const struct = ids.filter(id => !isDetail(id) && changed(id));
+        if (struct.length) {
+          if (lastCtx && cam.w < lastCtx.w * 0.85) { await moveCam(lastCtx); if (my !== seq) return; }
+          show(struct, on);
+          if (near(cam, ctx)) await wait(750); else await moveCam(ctx);
+          if (my !== seq) return;
+          lastCtx = ctx;
+        }
+        await moveCam(tgt, () => { if (my === seq) show(ids.filter(id => isDetail(id) && changed(id)), on); });
+        if (my === seq) lastCtx = ctx;
+      }
+      function apply(key, instant) {
+        const st = STEPS[key]; if (!st) return;
+        ['e_sh_det', 'd_sh_det', 'd_xsh_det'].forEach(id => G[id].setAttribute('data-hl', st.hl || ''));
+        curKey = key;
+        transition(st, instant);
+        const secs = [...document.querySelectorAll('.step')], sec = document.querySelector(`.step[data-step="${key}"]`);
+        badge.innerHTML = `<b>${secs.indexOf(sec) + 1}</b> / ${secs.length} · ${sec.querySelector('h2').textContent.replace(/^\d+/, '')}`;
+        if (!st.map) { setHL(null); }
+        else updateMapFromScroll();
+      }
+
+      /* ===================== CODE MAPPING ===================== */
+      const PRINT = [
+        ['MarianMTModel(', 'ALL', 'The whole translation model: encoder, decoder and output head (74.4M parameters).'],
+        ['  (model): MarianModel(', 'MODEL', 'The encoder-decoder body, without the output head.'],
+        ['    (shared): Embedding(58101, 512, padding_idx=58100)', 'e_emb d_emb d_lin', 'One vocab × $d$ = 58,101 × 512 matrix shared by the input embedding, the output embedding and the final Linear layer: 29.7M parameters, 40% of the model.'],
+        ['    (encoder): MarianEncoder(', 'ENC', 'The encoder.'],
+        ['      (embed_tokens): Embedding(58101, 512, padding_idx=58100)', 'e_emb', 'Input embedding (the shared matrix again).'],
+        ['      (embed_positions): MarianSinusoidalPositionalEmbedding(512, 512)', 'e_pe', 'Sinusoidal positional encoding: a fixed table of 512 positions × $d$ = 512 dimensions, not trained.'],
+        ['      (layers): ModuleList(', 'e_br', 'The stack of encoder layers.'],
+        ['        (0-5): 6 x MarianEncoderLayer(', 'e_br', '<code>(0-5): 6 x</code>: six identical layers, printed once. This is the diagram’s N× ($N = 6$).'],
+        ['          (self_attn): MarianAttention(', 'e_mha', 'Multi-head self-attention: all 8 heads live in this one module.'],
+        ['            (k_proj): Linear(in_features=512, out_features=512, bias=True)', 'e_mha', '<code>k_proj</code> = $W_K$ for all $h = 8$ heads at once: $d \to h \times d_k = 8 \times 64 = 512$, split into heads afterwards.'],
+        ['            (v_proj): Linear(in_features=512, out_features=512, bias=True)', 'e_mha', '<code>v_proj</code> = $W_V$ for all 8 heads: $d \to h \times d_v = 512$.'],
+        ['            (q_proj): Linear(in_features=512, out_features=512, bias=True)', 'e_mha', '<code>q_proj</code> = $W_Q$ for all 8 heads: $d \to h \times d_k = 512$.'],
+        ['            (out_proj): Linear(in_features=512, out_features=512, bias=True)', 'e_mha', '<code>out_proj</code> = $W_O$ ($h d_v \times d$), which mixes the concatenated heads.'],
+        ['          )', null],
+        ['          (self_attn_layer_norm): LayerNorm((512,), eps=1e-05, elementwise_affine=True)', 'e_an1', 'The LayerNorm of the first Add & Norm. The “Add” is just <code>+</code> in <code>forward()</code>, so it is not a module.'],
+        ['          (activation_fn): SiLU()', 'e_ffn', 'SiLU (swish) between fc1 and fc2. The paper used ReLU.'],
+        ['          (fc1): Linear(in_features=512, out_features=2048, bias=True)', 'e_ffn', 'Feed-forward, first layer: $d \to d_{ff}$ (512 → 2048).'],
+        ['          (fc2): Linear(in_features=2048, out_features=512, bias=True)', 'e_ffn', 'Feed-forward, second layer: $d_{ff} \to d$ (2048 → 512).'],
+        ['          (final_layer_norm): LayerNorm((512,), eps=1e-05, elementwise_affine=True)', 'e_an2', 'The LayerNorm of the second Add & Norm.'],
+        ['        )', null], ['      )', null], ['    )', null],
+        ['    (decoder): MarianDecoder(', 'DEC', 'The decoder.'],
+        ['      (embed_tokens): Embedding(58101, 512, padding_idx=58100)', 'd_emb', 'Output embedding (the shared matrix again).'],
+        ['      (embed_positions): MarianSinusoidalPositionalEmbedding(512, 512)', 'd_pe', 'The same fixed sinusoidal table.'],
+        ['      (layers): ModuleList(', 'd_br', 'The stack of decoder layers.'],
+        ['        (0-5): 6 x MarianDecoderLayer(', 'd_br', 'Six decoder layers: the decoder’s N×.'],
+        ['          (self_attn): MarianAttention(', 'd_mmha', 'Masked self-attention. The causal mask is a tensor applied in <code>forward()</code>, not a module.'],
+        ['            (k_proj): Linear(in_features=512, out_features=512, bias=True)', 'd_mmha', '$W_K$ for the 8 masked heads.'],
+        ['            (v_proj): Linear(in_features=512, out_features=512, bias=True)', 'd_mmha', '$W_V$ for the 8 masked heads.'],
+        ['            (q_proj): Linear(in_features=512, out_features=512, bias=True)', 'd_mmha', '$W_Q$ for the 8 masked heads.'],
+        ['            (out_proj): Linear(in_features=512, out_features=512, bias=True)', 'd_mmha', '$W_O$ for masked self-attention.'],
+        ['          )', null],
+        ['          (activation_fn): SiLU()', 'd_ffn', 'Printed here only because of definition order: it is used inside the feed-forward block.'],
+        ['          (self_attn_layer_norm): LayerNorm((512,), eps=1e-05, elementwise_affine=True)', 'd_an1', 'LayerNorm after masked self-attention.'],
+        ['          (encoder_attn): MarianAttention(', 'd_xattn', 'Cross-attention: queries from the decoder, keys and values from the encoder output.'],
+        ['            (k_proj): Linear(in_features=512, out_features=512, bias=True)', 'd_xattn', '$W_K$, applied to the encoder output.'],
+        ['            (v_proj): Linear(in_features=512, out_features=512, bias=True)', 'd_xattn', '$W_V$, applied to the encoder output.'],
+        ['            (q_proj): Linear(in_features=512, out_features=512, bias=True)', 'd_xattn', '$W_Q$, applied to the decoder’s own states.'],
+        ['            (out_proj): Linear(in_features=512, out_features=512, bias=True)', 'd_xattn', '$W_O$ for cross-attention.'],
+        ['          )', null],
+        ['          (encoder_attn_layer_norm): LayerNorm((512,), eps=1e-05, elementwise_affine=True)', 'd_an2', 'LayerNorm after cross-attention.'],
+        ['          (fc1): Linear(in_features=512, out_features=2048, bias=True)', 'd_ffn', 'Feed-forward, first layer: $d \to d_{ff}$ (512 → 2048).'],
+        ['          (fc2): Linear(in_features=2048, out_features=512, bias=True)', 'd_ffn', 'Feed-forward, second layer: $d_{ff} \to d$ (2048 → 512).'],
+        ['          (final_layer_norm): LayerNorm((512,), eps=1e-05, elementwise_affine=True)', 'd_an3', 'LayerNorm after the feed-forward block.'],
+        ['        )', null], ['      )', null], ['    )', null], ['  )', null],
+        ['  (lm_head): Linear(in_features=512, out_features=58101, bias=False)', 'd_lin', 'The final Linear: $d \to$ vocab (512 → 58,101). Its weights are tied to <code>shared</code>; the bias lives in a separate buffer, <code>final_logits_bias</code>. The softmax is not a module.'],
+        [')', null]
+      ];
+      const pre = document.getElementById('print');
+      const lines = PRINT.map(([txt, tg, nt]) => {
+        const sp = document.createElement('span'); sp.className = 'pl' + (tg ? ' map' : ''); sp.textContent = txt;
+        if (tg) { sp.dataset.t = tg; sp.dataset.n = nt || ''; }
+        pre.appendChild(sp); return sp;
+      });
+      const mapped = lines.filter(l => l.dataset.t);
+      let hlLine = null, hover = null;
+      function setHL(line) {
+        hlLine = line;
+        lines.forEach(l => l.classList.toggle('on', l === line));
+        while (hlLayer.firstChild) hlLayer.firstChild.remove();
+        if (!line) { note.classList.remove('show'); drawConn(); return; }
+        line.dataset.t.split(' ').forEach(id => {
+          const r = rectOf(id);
+          E('rect', { class: 'hlrect', x: r.x - 5, y: r.y - 5, width: r.w + 10, height: r.h + 10, rx: 10 }, hlLayer);
+        });
+        const nm = line.textContent.trim().split(':')[0].replace(/[()]/g, '');
+        note.innerHTML = texHTML(line.dataset.n.startsWith('<code>') ? line.dataset.n : `<code>${nm}</code> — ${line.dataset.n}`);
+        note.classList.add('show');
+        drawConn();
+      }
+      mapped.forEach(l => {
+        l.addEventListener('mouseenter', () => { if (isMap()) { hover = l; setHL(l); } });
+        l.addEventListener('mouseleave', () => { hover = null; if (isMap()) updateMapFromScroll(); });
+        l.addEventListener('click', () => { scrollToEl(l); });
+      });
+      const conn = document.getElementById('conn');
+      function drawConn() {
+        while (conn.firstChild) conn.firstChild.remove();
+        if (!hlLine || !isMap() || matchMedia('(max-width:820px)').matches) return;
+        const lr = hlLine.getBoundingClientRect(), pr = pre.getBoundingClientRect();
+        if (lr.bottom < 0 || lr.top > innerHeight) return;
+        const x1 = Math.min(pr.right, lr.left + hlLine.scrollWidth) + 6, y1 = lr.top + lr.height / 2;
+        const m = svg.getScreenCTM(); if (!m) return;
+        hlLine.dataset.t.split(' ').forEach(id => {
+          const r = rectOf(id), p = svg.createSVGPoint();
+          p.x = r.x - 5; p.y = r.y + r.h / 2; const q = p.matrixTransform(m);
+          const x2 = q.x, y2 = q.y, mx = (x1 + x2) / 2;
+          E('path', { d: `M${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`, fill: 'none', stroke: '#d9480f', 'stroke-width': 2, 'stroke-dasharray': '5 4', 'stroke-opacity': 0.75 }, conn);
+          E('circle', { cx: x1, cy: y1, r: 3.5, fill: '#d9480f' }, conn);
+        });
+      }
+
+      /* ===================== SCROLL & KEYS ===================== */
+      const steps = [...document.querySelectorAll('.step')];
+      function readLine() {
+        if (matchMedia('(max-width:820px)').matches) { const fh = document.getElementById('fig').getBoundingClientRect().height; return fh + (innerHeight - fh) * 0.3; }
+        return innerHeight * 0.42;
+      }
+      function activeStep() {
+        const rl = readLine(); let a = steps[0];
+        for (const s of steps) { if (s.getBoundingClientRect().top <= rl + 1) a = s; }
+        return a;
+      }
+      function updateMapFromScroll() {
+        if (!isMap() || hover) return;
+        const rl = readLine(); let a = null;
+        for (const l of mapped) { if (l.getBoundingClientRect().top <= rl + 1) a = l; }
+        setHL(a);
+      }
+      let ticking = false;
+      function onScroll() {
+        if (ticking) return; ticking = true;
+        requestAnimationFrame(() => {
+          ticking = false;
+          const a = activeStep();
+          steps.forEach(s => s.classList.toggle('active', s === a));
+          if (a.dataset.step !== curKey) apply(a.dataset.step);
+          else if (isMap()) updateMapFromScroll();
+          drawConn();
+        });
+      }
+      addEventListener('scroll', onScroll, { passive: true });
+      addEventListener('resize', () => { if (curKey) { cancelAnimationFrame(anim); cam = fit(camRect(STEPS[curKey].cam), STEPS[curKey].pad || 1.07); setVB(cam); } });
+      function scrollToEl(el, instant) {
+        const y = el.getBoundingClientRect().top + scrollY - readLine() + 2;
+        scrollTo({ top: Math.max(0, y), behavior: instant || STATIC ? 'auto' : 'smooth' });
+      }
+      const stops = () => [...steps, ...mapped];
+      addEventListener('keydown', e => {
+        if (e.target.closest && e.target.closest('input,textarea')) return;
+        const down = ['ArrowDown', 'PageDown', 'ArrowRight'].includes(e.key) || (e.key === ' ' && !e.shiftKey);
+        const up = ['ArrowUp', 'PageUp', 'ArrowLeft'].includes(e.key) || (e.key === ' ' && e.shiftKey);
+        if (!down && !up) return;
+        e.preventDefault();
+        const rl = readLine();
+        const all = stops().map(el => ({ el, t: el.getBoundingClientRect().top })).sort((a, b) => a.t - b.t);
+        let tgt;
+        if (down) tgt = all.find(s => s.t > rl + 8);
+        else tgt = [...all].reverse().find(s => s.t < rl - 8);
+        if (tgt) scrollToEl(tgt.el);
+        else if (up) scrollTo({ top: 0, behavior: STATIC ? 'auto' : 'smooth' });
+      });
+
+      /* ---------- start ---------- */
+      steps.forEach((s, i) => { s.querySelector('.n').textContent = i + 1; });
+      document.querySelectorAll('#text header p, .step ul').forEach(el => { el.innerHTML = texHTML(el.innerHTML); });
+      const m = location.hash.match(/step=([\w]+)/);
+      const first = m && document.querySelector(`.step[data-step="${m[1]}"]`);
+      apply(first ? first.dataset.step : '1', true);
+      steps.forEach(s => s.classList.toggle('active', s === (first || steps[0])));
+      const SHOT = /[?&]shot\b/.test(location.search);
+      if (first && !SHOT) { requestAnimationFrame(() => { scrollToEl(first, true); requestAnimationFrame(() => { apply(first.dataset.step, true); onScroll(); }); }); }
+      const lm = location.hash.match(/line=(\d+)/); if (SHOT && lm) setHL(mapped[+lm[1]]);
+      window.__T = { apply, STEPS, G, get key() { return curKey }, get hl() { return hlLine && hlLine.textContent.trim() } };
+    })();
+  </script>
+</body>
+
+</html>
