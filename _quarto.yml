@@ -21,6 +21,7 @@ project:
     - /index.html
     - /transformer.html
     - /finetuning.html
+    - /latent.html
 
 # Re-execute code only when a deck's .qmd changes; results are kept in
 # _freeze/ and shared by both profiles.
