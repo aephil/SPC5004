@@ -15,3 +15,12 @@
 
 # Local notes
 /UPDATE.md
+pics/lec17/raw/
+pics/lec19_22_raw/
+pics/lec18/raw/
+
+# Regenerable: GPU job bundles (zipped from pics/*_gpu/), Python caches, and
+# Quarto's copies of its own libraries in _freeze
+pics/*.zip
+__pycache__/
+/_freeze/*/libs/
