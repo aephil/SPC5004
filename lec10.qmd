@@ -21,7 +21,7 @@ $$\text{Perplexity} = \exp(\text{mean cross-entropy loss})$$
 SmolLM2-135M reads "The cat sat on the mat" and, at each step, gives a probability to the token that actually comes next:
 
 ::::{.columns}
-::: {.column width="52%" style="font-size: 0.72em;"}
+::: {.column .smaller-text width="52%"}
 | next token | $p$ | $-\ln p$ | top guess |
 |---|:---:|:---:|:---:|
 | cat | 0.00014 | 8.84 | first (0.02) |
@@ -31,7 +31,7 @@ SmolLM2-135M reads "The cat sat on the mat" and, at each step, gives a probabili
 | mat | 0.0062 | 5.08 | bed (0.07) |
 | **mean** | | **4.33** | |
 :::
-::: {.column width="48%" .incremental style="font-size: 0.8em;"}
+::: {.column .incremental .small-text width="48%"}
 * Mean cross-entropy loss: 4.33 nats; perplexity $e^{4.33} \approx 76$.
 * Equivalently, $\text{PPL} = \left(\prod_i p_i\right)^{-1/N}$: one over the *geometric mean* of the probabilities.
 * As if choosing among 76 equally likely tokens at every step.

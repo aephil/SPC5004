@@ -424,7 +424,9 @@ CLIP's task: in a batch of $N$ (image, caption) pairs, match each image with its
 </svg>
 ```
 
-[Real values from the model we'll use in the lab. Photos: scikit-image sample data (CC0 or public domain).]{style="font-size: 60%;"}
+::: aside
+Real values from the model we'll use in the lab. Photos: scikit-image sample data (CC0 or public domain).
+:::
 
 ## Pull together, push apart
 

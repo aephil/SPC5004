@@ -63,6 +63,27 @@ mark {
   font-size: 90%;
 }
 
+// Smaller text that stays where it is on the slide: a caption under a
+// figure, a table, a column. (Sources and notes for the foot of a slide
+// go in `::: aside` instead.) Put the class on a block, i.e. a div, not
+// on a span inside a paragraph: a span keeps the paragraph's full-size
+// line spacing, which looks far too loose at these sizes.
+.reveal .slides .small-text {
+  font-size: 0.8em;
+}
+
+.reveal .slides .smaller-text {
+  font-size: 0.7em;
+}
+
+.reveal .slides .note-text {
+  font-size: 0.6em;
+}
+
+.reveal .slides .larger-text {
+  font-size: 1.3em;
+}
+
 // Title slide layout: lecture number sits above the title, metadata
 // (author/date) is pinned near the bottom. title-main is flex:1 so it
 // absorbs the leftover height and centers its own contents, leaving

@@ -95,7 +95,7 @@ What is the capital of France?<|im_end|>
 Different model families mark turns differently. The same user turn, `Hi`:
 
 ```{=html}
-<table style="font-size: 0.75em;">
+<table class="smaller-text">
 <thead><tr><th>family</th><th>what the model sees</th></tr></thead>
 <tbody>
 <tr><td>ChatML (SmolLM2, Qwen)</td><td><code>&lt;|im_start|&gt;user⏎Hi&lt;|im_end|&gt;</code></td></tr>
@@ -174,7 +174,7 @@ print(tokenizer.apply_chat_template(messages, tokenize=False, add_generation_pro
 ## Which tokens should count?
 
 ```{=html}
-<div style="font-family: SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.6em; line-height: 2.4; margin: 0.6em 0 0.8em;">
+<div class="note-text" style="font-family: SFMono-Regular, Menlo, Consolas, monospace; line-height: 2.4; margin: 0.6em 0 0.8em;">
 <span style="background:#e4e4e4; color:#555; padding:0.2em 0.35em; border-radius:4px;">&lt;|im_start|&gt;</span>
 <span style="background:#e4e4e4; color:#555; padding:0.2em 0.35em; border-radius:4px;">user</span>
 <span style="background:#e4e4e4; color:#555; padding:0.2em 0.35em; border-radius:4px;">⏎</span>
@@ -252,7 +252,7 @@ It applies the chat template, tokenises, and builds the labels with −100 over 
 
 The QLoRA recipe from the last lecture applies unchanged: same data, same loss, same `SFTTrainer`, with a 4-bit base model.
 
-::: {style="font-size: 0.8em;"}
+::: {.small-text}
 | | first run | second run |
 |---|---|---|
 | base model | SmolLM2-135M | SmolLM2-1.7B |

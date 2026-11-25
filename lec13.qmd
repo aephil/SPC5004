@@ -1506,7 +1506,9 @@ It fires on about 0.05% of tokens in the corpus. Why might it fire on "hot dog",
 
 ![](pics/lec13/dashboard-12435.png){fig-alt="Neuronpedia's dashboard for feature 12435 of the 9-res-jb SAE, showing its explanation, logits, activation histograms and top activations" width="950"}
 
-[Feature 12435 on Neuronpedia. You'll see dashboards like this one in the lab.]{style="font-size: 60%;"}
+::: aside
+Feature 12435 on Neuronpedia. You'll see dashboards like this one in the lab.
+:::
 
 ## Reading a feature dashboard {.slightly-smaller}
 
