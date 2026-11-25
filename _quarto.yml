@@ -20,6 +20,7 @@ project:
     - lec15.qmd
     - lec16.qmd
     - lec17.qmd
+    - lec18.qmd
   resources:
     - /index.html
     - /transformer.html
