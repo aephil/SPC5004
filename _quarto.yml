@@ -17,11 +17,15 @@ project:
     - lec12.qmd
     - lec13.qmd
     - lec14.qmd
+    - lec15.qmd
+    - lec16.qmd
+    - lec17.qmd
   resources:
     - /index.html
     - /transformer.html
     - /finetuning.html
     - /latent.html
+    - /diffusion.html
 
 # Re-execute code only when a deck's .qmd changes; results are kept in
 # _freeze/ and shared by both profiles.
