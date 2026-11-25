@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<script src="lec15_files/libs/clipboard/clipboard.min.js"></script>
+<script src="lec15_files/libs/quarto-html/tabby.min.js"></script>
+<script src="lec15_files/libs/quarto-html/popper.min.js"></script>
+<script src="lec15_files/libs/quarto-html/tippy.umd.min.js"></script>
+<link href="lec15_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="lec15_files/libs/quarto-html/light-border.css" rel="stylesheet">
+<link href="lec15_files/libs/quarto-html/quarto-syntax-highlighting-15634bcf2e68342d4ad2dfa704d543f6.css" rel="stylesheet" id="quarto-text-highlighting-styles"><meta charset="utf-8">
+  <meta name="generator" content="quarto-1.9.38">
+
+  <meta name="author" content="Prof.&nbsp;Anthony E. Phillips">
+  <title>Diffusion models</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
+  <link rel="stylesheet" href="lec15_files/libs/revealjs/dist/reset.css">
+  <link rel="stylesheet" href="lec15_files/libs/revealjs/dist/reveal.css">
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    ul.task-list{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+      vertical-align: middle;
+    }
+    /* CSS for syntax highlighting */
+    html { -webkit-text-size-adjust: 100%; }
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      { color: #003b4f; background-color: #f1f3f5; }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span { color: #003b4f; } /* Normal */
+    code span.al { color: #ad0000; } /* Alert */
+    code span.an { color: #5e5e5e; } /* Annotation */
+    code span.at { color: #657422; } /* Attribute */
+    code span.bn { color: #ad0000; } /* BaseN */
+    code span.bu { } /* BuiltIn */
+    code span.cf { color: #003b4f; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #20794d; } /* Char */
+    code span.cn { color: #8f5902; } /* Constant */
+    code span.co { color: #5e5e5e; } /* Comment */
+    code span.cv { color: #5e5e5e; font-style: italic; } /* CommentVar */
+    code span.do { color: #5e5e5e; font-style: italic; } /* Documentation */
+    code span.dt { color: #ad0000; } /* DataType */
+    code span.dv { color: #ad0000; } /* DecVal */
+    code span.er { color: #ad0000; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #ad0000; } /* Float */
+    code span.fu { color: #4758ab; } /* Function */
+    code span.im { color: #00769e; } /* Import */
+    code span.in { color: #5e5e5e; } /* Information */
+    code span.kw { color: #003b4f; font-weight: bold; } /* Keyword */
+    code span.op { color: #5e5e5e; } /* Operator */
+    code span.ot { color: #003b4f; } /* Other */
+    code span.pp { color: #ad0000; } /* Preprocessor */
+    code span.sc { color: #5e5e5e; } /* SpecialChar */
+    code span.ss { color: #20794d; } /* SpecialString */
+    code span.st { color: #20794d; } /* String */
+    code span.va { color: #111111; } /* Variable */
+    code span.vs { color: #20794d; } /* VerbatimString */
+    code span.wa { color: #5e5e5e; font-style: italic; } /* Warning */
+  </style>
+  <link rel="stylesheet" href="lec15_files/libs/revealjs/dist/theme/quarto-0808c8525c656f54dfdb9ae951dd496d.css">
+  <link href="lec15_files/libs/revealjs/plugin/quarto-line-highlight/line-highlight.css" rel="stylesheet">
+  <link href="lec15_files/libs/revealjs/plugin/reveal-menu/menu.css" rel="stylesheet">
+  <link href="lec15_files/libs/revealjs/plugin/reveal-menu/quarto-menu.css" rel="stylesheet">
+  <link href="lec15_files/libs/revealjs/plugin/quarto-support/footer.css" rel="stylesheet">
+  <style type="text/css">
+    .reveal div.sourceCode {
+      margin: 0;
+      overflow: auto;
+    }
+    .reveal div.hanging-indent {
+      margin-left: 1em;
+      text-indent: -1em;
+    }
+    .reveal .slide:not(.center) {
+      height: 100%;
+    }
+    .reveal .slide.scrollable {
+      overflow-y: auto;
+    }
+    .reveal .footnotes {
+      height: 100%;
+      overflow-y: auto;
+    }
+    .reveal .slide .absolute {
+      position: absolute;
+      display: block;
+    }
+    .reveal .footnotes ol {
+      counter-reset: ol;
+      list-style-type: none; 
+      margin-left: 0;
+    }
+    .reveal .footnotes ol li:before {
+      counter-increment: ol;
+      content: counter(ol) ". "; 
+    }
+    .reveal .footnotes ol li > p:first-child {
+      display: inline-block;
+    }
+    .reveal .slide ul,
+    .reveal .slide ol {
+      margin-bottom: 0.5em;
+    }
+    .reveal .slide ul li,
+    .reveal .slide ol li {
+      margin-top: 0.4em;
+      margin-bottom: 0.2em;
+    }
+    .reveal .slide ul[role="tablist"] li {
+      margin-bottom: 0;
+    }
+    .reveal .slide ul li > *:first-child,
+    .reveal .slide ol li > *:first-child {
+      margin-block-start: 0;
+    }
+    .reveal .slide ul li > *:last-child,
+    .reveal .slide ol li > *:last-child {
+      margin-block-end: 0;
+    }
+    .reveal .slide .columns:nth-child(3) {
+      margin-block-start: 0.8em;
+    }
+    .reveal blockquote {
+      box-shadow: none;
+    }
+    .reveal .tippy-content>* {
+      margin-top: 0.2em;
+      margin-bottom: 0.7em;
+    }
+    .reveal .tippy-content>*:last-child {
+      margin-bottom: 0.2em;
+    }
+    .reveal .slide > img.stretch.quarto-figure-center,
+    .reveal .slide > img.r-stretch.quarto-figure-center {
+      display: block;
+      margin-left: auto;
+      margin-right: auto; 
+    }
+    .reveal .slide > img.stretch.quarto-figure-left,
+    .reveal .slide > img.r-stretch.quarto-figure-left  {
+      display: block;
+      margin-left: 0;
+      margin-right: auto; 
+    }
+    .reveal .slide > img.stretch.quarto-figure-right,
+    .reveal .slide > img.r-stretch.quarto-figure-right  {
+      display: block;
+      margin-left: auto;
+      margin-right: 0; 
+    }
+  </style>
+</head>
+<body class="quarto-light">
+  <div class="reveal">
+    <div class="slides">
+
+<section id="title-slide" class="center">
+  <div class="title-main">
+    <p class="lecture-number">Lecture 15</p>
+    <h1 class="title">Diffusion models</h1>
+    <p class="subtitle">SPC5004: Tools and Applications of Generative AI</p>
+  </div>
+  <div class="title-meta">
+    <p class="author">Prof.&nbsp;Anthony E. Phillips</p>
+    <p class="date">Tuesday, 17 November 2026</p>
+  </div>
+</section>
+<section id="generating-images-so-far" class="slide level2">
+<h2>Generating images, so far</h2>
+<p>A VAE generates an image in <strong>one shot</strong>: sample <span class="math inline">\(z \sim \mathcal{N}(0, I)\)</span>, decode it, done.</p>
+<ul>
+<li class="fragment">That works, but the images are blurry. A decoder trained with mean squared error hedges its bets by averaging.</li>
+<li class="fragment">Language models do something different: they build their output in <strong>many small steps</strong>, each one conditioned on what’s there so far.</li>
+</ul>
+<div class="fragment">
+<p><strong>Diffusion models</strong> also take many small steps. But every step works on the <em>whole image</em>: it starts as pure noise, and is refined a little at a time until a picture emerges.</p>
+</div>
+</section>
+<section id="noise-to-cat-in-1000-steps" class="slide level2">
+<h2>Noise to cat, in 1,000 steps</h2>
+
+<img data-src="pics/lec15/reverse-1.jpg" style="width:100.0%" class="r-stretch"><div class="note-text">
+<p>Top row: the image at steps <span class="math inline">\(t = 999, 900, 800, 700, 600, 400, 200, 0\)</span> of generation. We’ll come back to the bottom row. Model: <code>google/ddpm-cat-256</code>, from the original DDPM authors.</p>
+</div>
+<div class="fragment">
+<p>Today: how such a model is trained, what network it uses, and how it generates.</p>
+</div>
+</section>
+<section>
+<section id="the-forward-process" class="title-slide slide level1 center">
+<h1>The forward process</h1>
+
+</section>
+<section id="destroying-an-image-is-easy" class="slide level2">
+<h2>Destroying an image is easy</h2>
+<p>The simplest recipe: mix the image <span class="math inline">\(x_0\)</span> with random noise, by an amount <span class="math inline">\(a\)</span> between 0 and 1.</p>
+<p><span class="math display">\[x = (1 - a)\, x_0 + a \cdot \text{noise}\]</span></p>
+
+<img data-src="pics/lec15/forward-mix.jpg" style="width:100.0%" class="r-stretch"><div class="note-text">
+<p><span class="math inline">\(a = 0, 0.2, 0.4, 0.6, 0.8, 1\)</span>. Photo: scikit-image sample data, CC0.</p>
+</div>
+<ul>
+<li class="fragment">This needs no learning at all. It’s a fixed recipe.</li>
+<li class="fragment">For any noisy image we make, we know <em>exactly</em> which clean image and which noise went into it.</li>
+</ul>
+</section>
+<section id="gaussian-noise" class="slide level2">
+<h2>Gaussian noise</h2>
+<p>Real diffusion models use <strong>Gaussian</strong> noise <span class="math inline">\(\epsilon \sim \mathcal{N}(0, I)\)</span>: one independent normal random number per pixel and colour channel.</p>
+<ul>
+<li class="fragment">Gaussian noise has mean zero, so we scale pixel values to <span class="math inline">\([-1, 1]\)</span>, centred on zero like the noise, rather than <span class="math inline">\([0, 1]\)</span>.</li>
+<li class="fragment">Adding two independent Gaussians gives another Gaussian. So many small steps of noise add up to one big step of noise, which we can take directly.</li>
+<li class="fragment">We met this same distribution in the VAE: there, the decoder learned to turn samples of <span class="math inline">\(\mathcal{N}(0, I)\)</span> into images in one go.</li>
+</ul>
+</section>
+<section id="many-small-steps" class="slide level2">
+<h2>Many small steps</h2>
+<p>We add noise in <span class="math inline">\(T\)</span> small steps, usually <span class="math inline">\(T = 1000\)</span>. Step <span class="math inline">\(t\)</span> does</p>
+<p><span class="math display">\[x_t = \sqrt{1 - \beta_t}\; x_{t-1} + \sqrt{\beta_t}\; \epsilon\]</span></p>
+<ul>
+<li class="fragment"><span class="math inline">\(\beta_t\)</span> is a small number, the variance of the noise added at step <span class="math inline">\(t\)</span>. The list <span class="math inline">\(\beta_1, \dots, \beta_T\)</span> is the <strong>noise schedule</strong>.</li>
+<li class="fragment">The image is also shrunk slightly, by <span class="math inline">\(\sqrt{1-\beta_t}\)</span>, so that the total variance stays at 1. Otherwise the values would grow at every step.</li>
+<li class="fragment">The original DDPM paper (Ho <em>et al.</em>, 2020) increased <span class="math inline">\(\beta_t\)</span> linearly, from <span class="math inline">\(0.0001\)</span> to <span class="math inline">\(0.02\)</span>.</li>
+</ul>
+</section>
+<section id="jumping-straight-to-step-t" class="slide level2">
+<h2>Jumping straight to step <span class="math inline">\(t\)</span></h2>
+<p>Because Gaussians add up to Gaussians, we can skip the intermediate steps:</p>
+<p><span class="math display">\[x_t = \sqrt{\bar\alpha_t}\; x_0 + \sqrt{1 - \bar\alpha_t}\; \epsilon, \qquad \bar\alpha_t = \prod_{s=1}^{t} (1 - \beta_s)\]</span></p>
+<div class="fragment">
+<div id="4f244b32" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href=""></a><span class="im">import</span> torch</span>
+<span id="cb1-2"><a href=""></a>betas <span class="op">=</span> torch.linspace(<span class="fl">0.0001</span>, <span class="fl">0.02</span>, <span class="dv">1000</span>)       <span class="co"># the DDPM schedule</span></span>
+<span id="cb1-3"><a href=""></a>alpha_bar <span class="op">=</span> torch.cumprod(<span class="dv">1</span> <span class="op">-</span> betas, dim<span class="op">=</span><span class="dv">0</span>)      <span class="co"># running product</span></span>
+<span id="cb1-4"><a href=""></a>alpha_bar[[<span class="dv">0</span>, <span class="dv">250</span>, <span class="dv">500</span>, <span class="dv">750</span>, <span class="dv">999</span>]].sqrt()        <span class="co"># how much image is left</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div class="cell fragment" data-execution_count="1">
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>tensor([0.9999, 0.7221, 0.2789, 0.0574, 0.0064])</code></pre>
+</div>
+</div>
+</div>
+<div class="fragment">
+<p>So training never has to simulate 1,000 steps: one line makes a noisy image at any <span class="math inline">\(t\)</span>.</p>
+</div>
+</section>
+<section id="what-the-schedule-does-to-a-photo" class="slide level2">
+<h2>What the schedule does to a photo</h2>
+<p><img data-src="pics/lec15/forward-ddpm.jpg" style="width:100.0%"></p>
+<div class="note-text">
+<p><span class="math inline">\(t = 0, 50, 100, 200, 400, 600, 999\)</span>, with the DDPM schedule.</p>
+</div>
+<!-- generated by pics/lec15_16_svgs.py: l15-signal -->
+<svg viewbox="0 0 1100 330" width="100%" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Sans, sans-serif" role="img" aria-label="The image coefficient falls from 1 to 0 and the noise coefficient rises from 0 to 1 over 1000 steps of the original DDPM schedule">
+<defs></defs>
+<path d="M120 30 V280 H760" fill="none" stroke="#222" stroke-width="1.8"></path>
+<text x="440" y="324" text-anchor="middle" font-size="19.2" font-weight="600" fill="#000">timestep t</text>
+<text x="106" y="20" text-anchor="start" font-size="19.2" font-weight="600" fill="#000"></text>
+<text x="120" y="302" text-anchor="middle" font-size="16.6" font-weight="500" fill="#444">0</text>
+<text x="280" y="302" text-anchor="middle" font-size="16.6" font-weight="500" fill="#444">250</text>
+<text x="440" y="302" text-anchor="middle" font-size="16.6" font-weight="500" fill="#444">500</text>
+<text x="600" y="302" text-anchor="middle" font-size="16.6" font-weight="500" fill="#444">750</text>
+<text x="760" y="302" text-anchor="middle" font-size="16.6" font-weight="500" fill="#444">1000</text>
+<text x="110" y="285" text-anchor="end" font-size="16.6" font-weight="500" fill="#444">0</text>
+<text x="110" y="160" text-anchor="end" font-size="16.6" font-weight="500" fill="#444">0.5</text>
+<path d="M120 155 H760" stroke="#ddd" stroke-width="1"></path>
+<text x="110" y="35" text-anchor="end" font-size="16.6" font-weight="500" fill="#444">1</text>
+<path d="M120 30 H760" stroke="#ddd" stroke-width="1"></path>
+<path d="M120 30 L126.4 30.3 L132.8 30.8 L139.2 31.5 L145.6 32.5 L152 33.8 L158.4 35.3 L164.8 37 L171.2 38.9 L177.6 41.1 L184 43.5 L190.4 46.1 L196.8 48.9 L203.2 51.8 L209.6 55 L216 58.4 L222.4 61.9 L228.8 65.6 L235.2 69.4 L241.6 73.4 L248 77.5 L254.4 81.7 L260.8 86 L267.2 90.4 L273.6 94.9 L280 99.5 L286.4 104.1 L292.8 108.8 L299.2 113.5 L305.6 118.3 L312 123.1 L318.4 127.9 L324.8 132.7 L331.2 137.4 L337.6 142.2 L344 147 L350.4 151.7 L356.8 156.3 L363.2 161 L369.6 165.5 L376 170 L382.4 174.4 L388.8 178.8 L395.2 183 L401.6 187.2 L408 191.3 L414.4 195.3 L420.8 199.2 L427.2 203 L433.6 206.7 L440 210.3 L446.4 213.7 L452.8 217.1 L459.2 220.4 L465.6 223.5 L472 226.5 L478.4 229.5 L484.8 232.3 L491.2 235 L497.6 237.5 L504 240 L510.4 242.4 L516.8 244.7 L523.2 246.8 L529.6 248.9 L536 250.9 L542.4 252.7 L548.8 254.5 L555.2 256.2 L561.6 257.8 L568 259.3 L574.4 260.7 L580.8 262.1 L587.2 263.3 L593.6 264.5 L600 265.6 L606.4 266.7 L612.8 267.7 L619.2 268.6 L625.6 269.5 L632 270.3 L638.4 271.1 L644.8 271.7 L651.2 272.4 L657.6 273 L664 273.6 L670.4 274.1 L676.8 274.6 L683.2 275.1 L689.6 275.5 L696 275.9 L702.4 276.2 L708.8 276.6 L715.2 276.8 L721.6 277.1 L728 277.4 L734.4 277.6 L740.8 277.9 L747.2 278.1 L753.6 278.2" fill="none" stroke="#d9480f" stroke-width="3.2" stroke-linejoin="round"></path>
+<path d="M120 277.5 L126.4 268.3 L132.8 260.2 L139.2 252.3 L145.6 244.4 L152 236.7 L158.4 229 L164.8 221.3 L171.2 213.8 L177.6 206.4 L184 199 L190.4 191.8 L196.8 184.7 L203.2 177.8 L209.6 171 L216 164.3 L222.4 157.8 L228.8 151.5 L235.2 145.3 L241.6 139.3 L248 133.4 L254.4 127.8 L260.8 122.3 L267.2 117 L273.6 112 L280 107.1 L286.4 102.3 L292.8 97.8 L299.2 93.5 L305.6 89.3 L312 85.4 L318.4 81.6 L324.8 78 L331.2 74.6 L337.6 71.4 L344 68.3 L350.4 65.4 L356.8 62.7 L363.2 60.2 L369.6 57.8 L376 55.5 L382.4 53.4 L388.8 51.4 L395.2 49.6 L401.6 47.9 L408 46.3 L414.4 44.8 L420.8 43.4 L427.2 42.2 L433.6 41 L440 39.9 L446.4 38.9 L452.8 38 L459.2 37.2 L465.6 36.5 L472 35.8 L478.4 35.2 L484.8 34.6 L491.2 34.1 L497.6 33.6 L504 33.2 L510.4 32.8 L516.8 32.5 L523.2 32.2 L529.6 31.9 L536 31.7 L542.4 31.5 L548.8 31.3 L555.2 31.1 L561.6 31 L568 30.9 L574.4 30.7 L580.8 30.6 L587.2 30.6 L593.6 30.5 L600 30.4 L606.4 30.4 L612.8 30.3 L619.2 30.3 L625.6 30.2 L632 30.2 L638.4 30.2 L644.8 30.1 L651.2 30.1 L657.6 30.1 L664 30.1 L670.4 30.1 L676.8 30.1 L683.2 30 L689.6 30 L696 30 L702.4 30 L708.8 30 L715.2 30 L721.6 30 L728 30 L734.4 30 L740.8 30 L747.2 30 L753.6 30" fill="none" stroke="#7a7a7a" stroke-width="3.2" stroke-linejoin="round" stroke-dasharray="9 6"></path>
+<text x="478.4" y="190" text-anchor="start" font-size="21.8" font-weight="700" fill="#d9480f">how much image is left</text>
+<text x="478.4" y="80" text-anchor="start" font-size="21.8" font-weight="700" fill="#7a7a7a">how much noise is in</text>
+</svg>
+
+<aside><div>
+<p>Orange: <span class="math inline">\(\sqrt{\bar\alpha_t}\)</span>, the multiplier on <span class="math inline">\(x_0\)</span>. Grey: <span class="math inline">\(\sqrt{1-\bar\alpha_t}\)</span>, the multiplier on <span class="math inline">\(\epsilon\)</span>.</p>
+</div></aside></section>
+<section id="try-it-noising-a-photo" class="slide level2">
+<h2>Try it: noising a photo</h2>
+<script src="pics/lec15/demos-data.js" defer=""></script>
+<script src="pics/lec15/demos.js" defer=""></script>
+<div class="l15-demo" data-demo="noise">
+  <div class="l15-row">
+    <canvas data-role="img" class="l15-pix" style="width: 300px; height: 300px; image-rendering: auto;"></canvas>
+    <canvas data-role="chart"></canvas>
+  </div>
+  <div class="l15-ctl">
+    <input type="range" data-role="t" min="0" max="999" value="200" aria-label="timestep t">
+    <span class="l15-out">t = <b data-role="tval">200</b></span>
+    <button data-role="play">Play</button>
+    <button data-role="new">New noise</button>
+  </div>
+</div>
+<p><span class="math inline">\(x_t = \sqrt{\bar\alpha_t}\, x_0 + \sqrt{1-\bar\alpha_t}\, \epsilon\)</span>, with <span class="math inline">\(\sqrt{\bar\alpha_t} =\)</span> <span class="l15-sig l15-num">0.81</span> and <span class="math inline">\(\sqrt{1-\bar\alpha_t} =\)</span> <span class="l15-noi l15-num">0.59</span>.</p>
+
+<aside><div>
+<p>Drag the slider or the chart. The noise <span class="math inline">\(\epsilon\)</span> stays the same until you ask for new noise.</p>
+</div></aside></section></section>
+<section>
+<section id="learning-to-go-backwards" class="title-slide slide level1 center">
+<h1>Learning to go backwards</h1>
+
+</section>
+<section id="why-not-undo-it-in-one-step" class="slide level2">
+<h2>Why not undo it in one step?</h2>
+<p>Suppose we train a network to look at <span class="math inline">\(x_t\)</span> and predict the clean image <span class="math inline">\(x_0\)</span>.</p>
+<ul>
+<li class="fragment">At small <span class="math inline">\(t\)</span>, that’s easy: the image is all still there.</li>
+<li class="fragment">At <span class="math inline">\(t = 999\)</span> the input is pure noise, so it carries no information about <span class="math inline">\(x_0\)</span> at all. The best guess under mean squared error is then the <strong>average</strong> of all training images.</li>
+<li class="fragment">In between, the best guess is the average of every image that <em>could</em> have produced this <span class="math inline">\(x_t\)</span>: sharp where the evidence is clear, blurry where it isn’t.</li>
+</ul>
+<div class="fragment">
+<p>That’s the VAE’s blur problem again. Generating in one shot from pure noise gives the average cat, not a cat.</p>
+</div>
+</section>
+<section id="the-best-guess-exactly" class="slide level2">
+<h2>The best guess, exactly</h2>
+<p>Suppose the only images in the world were these 1,000 cats. Then we can work out the best possible guess at <span class="math inline">\(x_0\)</span> exactly.</p>
+<div class="l15-demo" data-demo="average">
+  <div class="l15-row">
+    <div class="l15-col"><span class="l15-lab">the real image <span class="math inline">\(x_0\)</span></span>
+      <canvas data-role="x0" class="l15-pix" style="width: 150px; height: 150px;"></canvas></div>
+    <div class="l15-col"><span class="l15-lab">what the network sees, <span class="math inline">\(x_t\)</span></span>
+      <canvas data-role="xt" class="l15-pix" style="width: 150px; height: 150px;"></canvas></div>
+    <div class="l15-col"><span class="l15-lab" style="color: #d9480f;">best guess <span class="math inline">\(\hat x_0\)</span></span>
+      <canvas data-role="xhat" class="l15-pix" style="width: 150px; height: 150px;"></canvas></div>
+    <div class="l15-col"><span class="l15-lab">most likely sources</span>
+      <div data-role="top" class="l15-top"></div></div>
+  </div>
+  <div class="l15-ctl">
+    <input type="range" data-role="t" min="0" max="999" value="600" aria-label="timestep t">
+    <span class="l15-out">t = <b data-role="tval">600</b></span>
+    <button data-role="new">Another cat</button>
+  </div>
+</div>
+<div class="small-text">
+<p>The best guess is an average of all 1,000 cats, weighted by how likely each one is to have produced <span class="math inline">\(x_t\)</span>. Right now the weight is spread over about <span class="l15-neff l15-num">18</span> of them.</p>
+</div>
+
+<aside><div>
+<p>32 × 32 cat images from CIFAR-10 (Krizhevsky, 2009). DDPM schedule.</p>
+</div></aside></section>
+<section id="the-models-best-guesses" class="slide level2">
+<h2>The model’s best guesses</h2>
+
+<img data-src="pics/lec15/reverse-1.jpg" style="width:100.0%" class="r-stretch"><div class="note-text">
+<p>Bottom row: the model’s prediction of the clean image <span class="math inline">\(\hat x_0\)</span>, made at each of the steps shown above it.</p>
+</div>
+<ul>
+<li class="fragment">At <span class="math inline">\(t = 999\)</span> the guess is little more than an average colour: the input says almost nothing about the cat.</li>
+<li class="fragment">Each step commits to a little more: first the overall layout and colour, then shapes, and only near the end the fine detail.</li>
+</ul>
+</section>
+<section id="iterative-refinement" class="slide level2">
+<h2>Iterative refinement</h2>
+<p>So instead of jumping to the prediction, we take a small step towards it, then ask again.</p>
+<ol type="1">
+<li class="fragment">Start from pure noise.</li>
+<li class="fragment">Ask the network for its best guess at the clean image.</li>
+<li class="fragment">Move the current image a little way towards that guess, leaving it slightly less noisy than before.</li>
+<li class="fragment">Repeat until no noise is left.</li>
+</ol>
+<div class="fragment">
+<p>Each guess is made from a slightly cleaner input than the last, so the guesses sharpen as we go. Early steps settle <em>what</em> the picture is; later steps settle the details.</p>
+</div>
+</section>
+<section id="small-steps-in-two-dimensions" class="slide level2">
+<h2>Small steps, in two dimensions</h2>
+<div class="columns">
+<div class="column" style="width:52%;">
+<div class="l15-demo" data-demo="spiral">
+  <canvas data-role="plot"></canvas>
+  <div data-role="status" style="text-align: center; margin-top: 6px;">the data: 500 points</div>
+</div>
+</div><div class="column" style="width:48%;">
+<div class="small-text">
+<p>Each “image” here is just two numbers: a point. The data (grey) lie on a spiral.</p>
+<div class="l15-demo" data-demo-part="spiral">
+  <div class="l15-lab">Add noise:</div>
+  <div class="l15-ctl" style="justify-content: flex-start; margin-top: 4px;">
+    <input type="range" data-role="t" min="0" max="999" value="0" aria-label="timestep t" style="width: 100%;">
+  </div>
+  <div class="l15-lab" style="margin-top: 18px;">Generate from fresh noise, in</div>
+  <div class="l15-ctl" style="justify-content: flex-start; margin-top: 4px;">
+    <button data-steps="1">1</button><button data-steps="2">2</button><button data-steps="5">5</button>
+    <button data-steps="20">20</button><button data-steps="100">100</button><button data-steps="1000">1,000</button>
+    <span>steps</span>
+  </div>
+</div>
+<p>Every step uses the best possible guess for these 500 points, exactly as on the cats slide.</p>
+</div>
+</div></div>
+</section>
+<section id="early-guesses-can-change" class="slide level2">
+<h2>Early guesses can change</h2>
+
+<img data-src="pics/lec15/reverse-0.jpg" style="width:100.0%" class="r-stretch"><div class="note-text">
+<p>Another sample from the same model. Same steps as before: the image <span class="math inline">\(x_t\)</span> on top, the guess <span class="math inline">\(\hat x_0\)</span> below.</p>
+</div>
+<div class="fragment">
+<p>At <span class="math inline">\(t = 800\)</span> the model was heading for a cat facing us. By <span class="math inline">\(t = 600\)</span> it had settled on a quite different pose. Small steps leave room to change course; a single jump would have committed to the blur.</p>
+</div>
+</section>
+<section id="what-should-the-network-predict" class="slide level2">
+<h2>What should the network predict?</h2>
+<p>Two options, each from the noisy image <span class="math inline">\(x_t\)</span> and the step <span class="math inline">\(t\)</span>:</p>
+<ul>
+<li class="fragment"><strong>The clean image</strong> <span class="math inline">\(\hat x_0\)</span>. Simple to think about, and it works. You’ll start with this in the lab.</li>
+<li class="fragment"><strong>The noise</strong> <span class="math inline">\(\hat\epsilon\)</span> that was added. This is what DDPM, and most models since, actually do.</li>
+</ul>
+<div class="fragment">
+<p>Given <span class="math inline">\(x_t\)</span> and <span class="math inline">\(t\)</span>, either one gives you the other:</p>
+<p><span class="math display">\[x_0 = \frac{x_t - \sqrt{1 - \bar\alpha_t}\;\epsilon}{\sqrt{\bar\alpha_t}}\]</span></p>
+</div>
+<div class="fragment">
+<p>But the noise is always drawn from <span class="math inline">\(\mathcal{N}(0, I)\)</span>, whatever the image and whatever <span class="math inline">\(t\)</span>. That makes it a target of the same size and shape at every step, and in practice it trains more stably.</p>
+</div>
+</section>
+<section id="the-training-objective" class="slide level2">
+<h2>The training objective</h2>
+<p><span class="math display">\[\mathcal{L} = \big\lVert \epsilon - \hat\epsilon_\theta(x_t, t) \big\rVert^2\]</span></p>
+<p>For each training image:</p>
+<ol type="1">
+<li class="fragment">pick a random step <span class="math inline">\(t\)</span> between 1 and <span class="math inline">\(T\)</span>, and random noise <span class="math inline">\(\epsilon\)</span>;</li>
+<li class="fragment">make <span class="math inline">\(x_t\)</span> in one jump, using the formula above;</li>
+<li class="fragment">ask the network <span class="math inline">\(\hat\epsilon_\theta\)</span> to predict <span class="math inline">\(\epsilon\)</span> from <span class="math inline">\(x_t\)</span> and <span class="math inline">\(t\)</span>;</li>
+<li class="fragment">compute the mean squared error, and backpropagate.</li>
+</ol>
+<div class="fragment">
+<p>No labels needed: like an autoencoder, the data supervise themselves. And the network practises every noise level, not just one.</p>
+</div>
+</section>
+<section id="in-code" class="slide level2">
+<h2>In code</h2>
+<p>With the <code>diffusers</code> library, which we’ll use from now on:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href=""></a>scheduler <span class="op">=</span> DDPMScheduler(num_train_timesteps<span class="op">=</span><span class="dv">1000</span>)    <span class="co"># holds the betas</span></span>
+<span id="cb3-2"><a href=""></a></span>
+<span id="cb3-3"><a href=""></a><span class="cf">for</span> clean_images <span class="kw">in</span> dataloader:</span>
+<span id="cb3-4"><a href=""></a>    noise <span class="op">=</span> torch.randn_like(clean_images)</span>
+<span id="cb3-5"><a href=""></a>    t <span class="op">=</span> torch.randint(<span class="dv">0</span>, <span class="dv">1000</span>, (<span class="bu">len</span>(clean_images),))   <span class="co"># one random step per image</span></span>
+<span id="cb3-6"><a href=""></a>    noisy_images <span class="op">=</span> scheduler.add_noise(clean_images, noise, t)</span>
+<span id="cb3-7"><a href=""></a></span>
+<span id="cb3-8"><a href=""></a>    noise_pred <span class="op">=</span> model(noisy_images, t).sample</span>
+<span id="cb3-9"><a href=""></a>    loss <span class="op">=</span> F.mse_loss(noise_pred, noise)</span>
+<span id="cb3-10"><a href=""></a>    loss.backward()</span>
+<span id="cb3-11"><a href=""></a>    optimizer.step()</span>
+<span id="cb3-12"><a href=""></a>    optimizer.zero_grad()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="sampling" class="slide level2">
+<h2>Sampling</h2>
+<p>Generation runs the steps in reverse:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href=""></a>x <span class="op">=</span> torch.randn(n_images, <span class="dv">3</span>, <span class="dv">256</span>, <span class="dv">256</span>)                 <span class="co"># pure noise</span></span>
+<span id="cb4-2"><a href=""></a><span class="cf">for</span> t <span class="kw">in</span> scheduler.timesteps:                          <span class="co"># 999, 998, ..., 0</span></span>
+<span id="cb4-3"><a href=""></a>    noise_pred <span class="op">=</span> model(x, t).sample</span>
+<span id="cb4-4"><a href=""></a>    x <span class="op">=</span> scheduler.step(noise_pred, t, x).prev_sample   <span class="co"># one step less noisy</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<ul>
+<li class="fragment"><code>scheduler.step</code> uses the noise prediction to make a guess at <span class="math inline">\(x_0\)</span>, and moves part of the way towards it. It knows the schedule, so it knows how big a step to take at each <span class="math inline">\(t\)</span>.</li>
+<li class="fragment">DDPM also adds back a little <em>fresh</em> noise at each step (except the last). This lets later steps correct earlier mistakes.</li>
+<li class="fragment">That’s 1,000 calls to the network for every image, so generation is slow: the cats on the next slide took several minutes on a laptop. Later we’ll meet samplers that need far fewer steps.</li>
+</ul>
+</section>
+<section id="four-new-cats" class="slide level2">
+<h2>Four new cats</h2>
+<p><img data-src="pics/lec15/cats.jpg" style="width:100.0%"></p>
+
+<aside><div>
+<p>Four samples from <code>google/ddpm-cat-256</code>, from four different starting noises. None of these is a photo.</p>
+</div></aside></section></section>
+<section>
+<section id="the-network-a-unet" class="title-slide slide level1 center">
+<h1>The network: a UNet</h1>
+
+</section>
+<section id="a-network-that-outputs-an-image" class="slide level2">
+<h2>A network that outputs an image</h2>
+<p>We need a network whose output is the <em>same size</em> as its input: an image in, a prediction out. The usual choice is a <strong>UNet</strong>.</p>
+<!-- generated by pics/lec15_16_svgs.py: l15-unet -->
+<svg viewbox="0 0 1100 412" width="100%" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Sans, sans-serif" role="img" aria-label="A small UNet: the image is downsampled to 8 by 8 and upsampled back, with skip connections across">
+<defs><marker id="l15u-k" viewbox="0 0 10 10" refx="9" refy="5" markerwidth="5" markerheight="5" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#222"></path></marker><marker id="l15u-a" viewbox="0 0 10 10" refx="9" refy="5" markerwidth="5" markerheight="5" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#d9480f"></path></marker></defs>
+<path d="M155.2 92.4 L157.4 91.1 V206.3 L155.2 207.6 Z" fill="#e0e0e0" stroke="#222" stroke-width="1.2" stroke-linejoin="round"></path>
+<path d="M40 92.4 L42.2 91.1 H157.4 L155.2 92.4 Z" fill="#ffffff" stroke="#222" stroke-width="1.2" stroke-linejoin="round"></path>
+<rect x="40" y="92.4" width="115.2" height="115.2" fill="#ffffff" stroke="#222" stroke-width="1.2"></rect>
+<text x="97.6" y="229.6" text-anchor="middle" font-size="16.6" font-weight="500" fill="#000" font-family="SFMono-Regular, Menlo, Consolas, monospace">1×32×32</text>
+<path d="M315.2 92.4 L324.2 87 V202.2 L315.2 207.6 Z" fill="#a9e0bb" stroke="#222" stroke-width="1.2" stroke-linejoin="round"></path>
+<path d="M200 92.4 L209 87 H324.2 L315.2 92.4 Z" fill="#d6ffe3" stroke="#222" stroke-width="1.2" stroke-linejoin="round"></path>
+<rect x="200" y="92.4" width="115.2" height="115.2" fill="#c0ffd4" stroke="#222" stroke-width="1.2"></rect>
+<text x="257.6" y="229.6" text-anchor="middle" font-size="16.6" font-weight="500" fill="#000" font-family="SFMono-Regular, Menlo, Consolas, monospace">32×32×32</text>
+<path d="M427.6 239.2 L443.7 229.6 V287.2 L427.6 296.8 Z" fill="#a9e0bb" stroke="#222" stroke-width="1.2" stroke-linejoin="round"></path>
+<path d="M370 239.2 L386.1 229.6 H443.7 L427.6 239.2 Z" fill="#d6ffe3" stroke="#222" stroke-width="1.2" stroke-linejoin="round"></path>
+<rect x="370" y="239.2" width="57.6" height="57.6" fill="#c0ffd4" stroke="#222" stroke-width="1.2"></rect>
+<text x="398.8" y="318.8" text-anchor="middle" font-size="16.6" font-weight="500" fill="#000" font-family="SFMono-Regular, Menlo, Consolas, monospace">64×16×16</text>
+<path d="M538.8 337.6 L554.9 328 V356.8 L538.8 366.4 Z" fill="#a9e0bb" stroke="#222" stroke-width="1.2" stroke-linejoin="round"></path>
+<path d="M510 337.6 L526.1 328 H554.9 L538.8 337.6 Z" fill="#d6ffe3" stroke="#222" stroke-width="1.2" stroke-linejoin="round"></path>
+<rect x="510" y="337.6" width="28.8" height="28.8" fill="#c0ffd4" stroke="#222" stroke-width="1.2"></rect>
+<text x="524.4" y="388.4" text-anchor="middle" font-size="16.6" font-weight="500" fill="#000" font-family="SFMono-Regular, Menlo, Consolas, monospace">64×8×8</text>
+<path d="M697.6 239.2 L713.7 229.6 V287.2 L697.6 296.8 Z" fill="#e0bde0" stroke="#222" stroke-width="1.2" stroke-linejoin="round"></path>
+<path d="M640 239.2 L656.1 229.6 H713.7 L697.6 239.2 Z" fill="#fee5ff" stroke="#222" stroke-width="1.2" stroke-linejoin="round"></path>
+<rect x="640" y="239.2" width="57.6" height="57.6" fill="#fed7ff" stroke="#222" stroke-width="1.2"></rect>
+<text x="668.8" y="318.8" text-anchor="middle" font-size="16.6" font-weight="500" fill="#000" font-family="SFMono-Regular, Menlo, Consolas, monospace">64×16×16</text>
+<path d="M905.2 92.4 L914.2 87 V202.2 L905.2 207.6 Z" fill="#e0bde0" stroke="#222" stroke-width="1.2" stroke-linejoin="round"></path>
+<path d="M790 92.4 L799 87 H914.2 L905.2 92.4 Z" fill="#fee5ff" stroke="#222" stroke-width="1.2" stroke-linejoin="round"></path>
+<rect x="790" y="92.4" width="115.2" height="115.2" fill="#fed7ff" stroke="#222" stroke-width="1.2"></rect>
+<text x="847.6" y="229.6" text-anchor="middle" font-size="16.6" font-weight="500" fill="#000" font-family="SFMono-Regular, Menlo, Consolas, monospace">32×32×32</text>
+<path d="M1095.2 92.4 L1097.4 91.1 V206.3 L1095.2 207.6 Z" fill="#e0e0e0" stroke="#222" stroke-width="1.2" stroke-linejoin="round"></path>
+<path d="M980 92.4 L982.2 91.1 H1097.4 L1095.2 92.4 Z" fill="#ffffff" stroke="#222" stroke-width="1.2" stroke-linejoin="round"></path>
+<rect x="980" y="92.4" width="115.2" height="115.2" fill="#ffffff" stroke="#222" stroke-width="1.2"></rect>
+<text x="1037.6" y="229.6" text-anchor="middle" font-size="16.6" font-weight="500" fill="#000" font-family="SFMono-Regular, Menlo, Consolas, monospace">1×32×32</text>
+<text x="97.6" y="44" text-anchor="middle" font-size="20.5" font-weight="700" fill="#000">noisy image</text>
+<text x="1037.6" y="44" text-anchor="middle" font-size="20.5" font-weight="700" fill="#d9480f">prediction</text>
+<text x="1037.6" y="64" text-anchor="middle" font-size="17.9" font-weight="500" fill="#444">(same size)</text>
+<path d="M161.4 150 L196 150" fill="none" stroke="#222" stroke-width="2.2" stroke-linejoin="round" marker-end="url(#l15u-k)"></path>
+<path d="M328.2 150 L366 268" fill="none" stroke="#222" stroke-width="2.2" stroke-linejoin="round" marker-end="url(#l15u-k)"></path>
+<path d="M447.7 268 L506 352" fill="none" stroke="#222" stroke-width="2.2" stroke-linejoin="round" marker-end="url(#l15u-k)"></path>
+<path d="M558.9 352 L636 268" fill="none" stroke="#222" stroke-width="2.2" stroke-linejoin="round" marker-end="url(#l15u-k)"></path>
+<path d="M717.7 268 L786 150" fill="none" stroke="#222" stroke-width="2.2" stroke-linejoin="round" marker-end="url(#l15u-k)"></path>
+<path d="M918.2 150 L976 150" fill="none" stroke="#222" stroke-width="2.2" stroke-linejoin="round" marker-end="url(#l15u-k)"></path>
+<text x="250" y="400" text-anchor="middle" font-size="19.2" font-weight="600" fill="#2f7d4a">downsample: coarser, more channels</text>
+<text x="840" y="400" text-anchor="middle" font-size="19.2" font-weight="600" fill="#a23aa6">upsample back to full size</text>
+<g class="fragment" data-fragment-index="0">
+<path d="M257.6 81 L257.6 73 L847.6 73 L847.6 81" fill="none" stroke="#d9480f" stroke-width="2.4" stroke-linejoin="round" stroke-dasharray="8 5" marker-end="url(#l15u-a)"></path>
+<path d="M398.8 223.6 L398.8 215.6 L668.8 215.6 L668.8 223.6" fill="none" stroke="#d9480f" stroke-width="2.4" stroke-linejoin="round" stroke-dasharray="8 5" marker-end="url(#l15u-a)"></path>
+<text x="560" y="150" text-anchor="middle" font-size="20.5" font-weight="700" fill="#d9480f">skip connections carry</text>
+<text x="560" y="172" text-anchor="middle" font-size="20.5" font-weight="700" fill="#d9480f">fine detail straight across</text>
+</g>
+</svg>
+
+<aside><div>
+<p>Shapes are channels × height × width, for the small UNet you’ll build in the lab.</p>
+</div></aside></section>
+<section id="compared-with-an-autoencoder" class="slide level2">
+<h2>Compared with an autoencoder</h2>
+<p>The UNet looks like our convolutional autoencoder, but it has a different job.</p>
+<ul>
+<li class="fragment"><strong>Down</strong>: convolutions and downsampling build a coarse summary of what’s in the image, with more channels and fewer pixels.</li>
+<li class="fragment"><strong>Up</strong>: upsampling builds back to full size.</li>
+<li class="fragment"><strong>Skip connections</strong> copy each downsampling stage’s output across to the matching upsampling stage, so fine detail never has to squeeze through the narrow middle.</li>
+<li class="fragment">An autoencoder’s bottleneck is the whole point: it forces compression. Here there’s nothing to compress. At small <span class="math inline">\(t\)</span> the image is almost all there, and the skips pass its detail straight through.</li>
+</ul>
+</section>
+<section id="telling-the-network-the-time" class="slide level2">
+<h2>Telling the network the time</h2>
+<p>The same noisy-looking pixel means different things at different steps: at <span class="math inline">\(t = 50\)</span> it is mostly image, at <span class="math inline">\(t = 950\)</span> mostly noise.</p>
+<ul>
+<li class="fragment">So a diffusion UNet takes <span class="math inline">\(t\)</span> as a second input, and every layer is told it. Next lecture: exactly how, and how the same trick lets us ask for a particular kind of image.</li>
+<li class="fragment">Larger UNets also add <strong>self-attention</strong> at the coarsest resolutions, so distant parts of the image can be related: an ear on the left with an ear on the right.</li>
+<li class="fragment">We’ll treat the internals as a box that predicts noise well. Network design belongs to the neural-networks module.</li>
+</ul>
+</section>
+<section id="how-big" class="slide level2">
+<h2>How big?</h2>
+<table class="caption-top">
+<thead>
+<tr class="header">
+<th>Model</th>
+<th style="text-align: right;">Parameters</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>A minimal UNet, no attention, no <span class="math inline">\(t\)</span> (lab)</td>
+<td style="text-align: right;">309,057</td>
+</tr>
+<tr class="even">
+<td><code>diffusers</code> <code>UNet2DModel</code>, with attention (lab)</td>
+<td style="text-align: right;">1,707,009</td>
+</tr>
+<tr class="odd">
+<td><code>google/ddpm-cat-256</code>, 256 × 256 colour images</td>
+<td style="text-align: right;">113,673,219</td>
+</tr>
+</tbody>
+</table>
+<div class="fragment">
+<p>For comparison, SmolLM2-135M, the language model we fine-tuned to generate text, has about 135 million.</p>
+</div>
+</section></section>
+<section>
+<section id="noise-schedules" class="title-slide slide level1 center">
+<h1>Noise schedules</h1>
+
+</section>
+<section id="the-schedule-is-a-design-choice" class="slide level2">
+<h2>The schedule is a design choice</h2>
+<p>The schedule <span class="math inline">\(\beta_1, \dots, \beta_T\)</span> decides how fast the image disappears.</p>
+<ul>
+<li class="fragment"><strong>Training</strong>: steps <span class="math inline">\(t\)</span> are picked uniformly at random, so the schedule decides how much training effort goes on each level of noise.</li>
+<li class="fragment"><strong>Sampling</strong>: we take one step per <span class="math inline">\(t\)</span>, so the schedule also decides where generation spends its time.</li>
+<li class="fragment">If the image is effectively gone long before <span class="math inline">\(t = T\)</span>, the steps after that are spent turning noise into slightly different noise. They teach the model little, and add little when sampling.</li>
+</ul>
+</section>
+<section id="linear-and-cosine-schedules" class="slide level2">
+<h2>Linear and cosine schedules</h2>
+<p>The DDPM schedule is <strong>linear</strong> in <span class="math inline">\(\beta_t\)</span>. Nichol and Dhariwal (2021) proposed instead choosing <span class="math inline">\(\bar\alpha_t\)</span> directly, as a <strong>cosine</strong>:</p>
+<p><span class="math display">\[\bar\alpha_t = \cos^2\!\left(\frac{t/T + s}{1 + s} \cdot \frac{\pi}{2}\right), \qquad s = 0.008\]</span></p>
+<ul>
+<li class="fragment"><span class="math inline">\(\bar\alpha_t\)</span> starts at (almost) 1 and ends at 0, and falls slowly at both ends, so that no steps are wasted at either extreme.</li>
+<li class="fragment"><code>diffusers</code> calls this <code>beta_schedule="squaredcos_cap_v2"</code>.</li>
+<li class="fragment">In the lab you’ll see what the DDPM schedule does to a small image, and a project asks you to compare others.</li>
+</ul>
+</section>
+<section id="summary" class="slide level2">
+<h2>Summary</h2>
+<ul>
+<li class="fragment">The <strong>forward process</strong> adds Gaussian noise in <span class="math inline">\(T\)</span> small steps, following a fixed <strong>noise schedule</strong>. We can jump straight to any step <span class="math inline">\(t\)</span>.</li>
+<li class="fragment">Undoing it in one step gives a blurry average. Instead, <strong>iterative refinement</strong> takes many small steps, each from a slightly cleaner image.</li>
+<li class="fragment">The network is trained to predict the <strong>noise</strong> that was added, from <span class="math inline">\(x_t\)</span> and <span class="math inline">\(t\)</span>, with mean squared error. Predicting the clean image also works.</li>
+<li class="fragment">The network is a <strong>UNet</strong>: same size out as in, with skip connections that carry detail across.</li>
+<li class="fragment">The <strong>schedule</strong> decides where training and sampling spend their effort.</li>
+</ul>
+
+</section></section>
+    </div>
+  <div class="quarto-auto-generated-content" style="display: none;">
+<div class="footer footer-default">
+
+</div>
+</div></div>
+
+  <script>window.backupDefine = window.define; window.define = undefined;</script>
+  <script src="lec15_files/libs/revealjs/dist/reveal.js"></script>
+  <!-- reveal.js plugins -->
+  <script src="lec15_files/libs/revealjs/plugin/quarto-line-highlight/line-highlight.js"></script>
+  <script src="lec15_files/libs/revealjs/plugin/pdf-export/pdfexport.js"></script>
+  <script src="lec15_files/libs/revealjs/plugin/reveal-menu/menu.js"></script>
+  <script src="lec15_files/libs/revealjs/plugin/reveal-menu/quarto-menu.js"></script>
+  <script src="lec15_files/libs/revealjs/plugin/quarto-support/support.js"></script>
+  
+
+  <script src="lec15_files/libs/revealjs/plugin/notes/notes.js"></script>
+  <script src="lec15_files/libs/revealjs/plugin/search/search.js"></script>
+  <script src="lec15_files/libs/revealjs/plugin/zoom/zoom.js"></script>
+  <script src="lec15_files/libs/revealjs/plugin/math/math.js"></script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script>
+
+  <script>
+
+      // Full list of configuration options available at:
+      // https://revealjs.com/config/
+      Reveal.initialize({
+'controlsAuto': true,
+'previewLinksAuto': false,
+'pdfSeparateFragments': false,
+'autoAnimateEasing': "ease",
+'autoAnimateDuration': 1,
+'autoAnimateUnmatched': true,
+'jumpToSlide': true,
+'menu': {"side":"left","useTextContentForMissingTitles":true,"markers":false,"loadIcons":false,"custom":[{"title":"Tools","icon":"<i class=\"fas fa-gear\"></i>","content":"<ul class=\"slide-menu-items\">\n<li class=\"slide-tool-item active\" data-item=\"0\"><a href=\"#\" onclick=\"RevealMenuToolHandlers.fullscreen(event)\"><kbd>f</kbd> Fullscreen</a></li>\n<li class=\"slide-tool-item\" data-item=\"1\"><a href=\"#\" onclick=\"RevealMenuToolHandlers.speakerMode(event)\"><kbd>s</kbd> Speaker View</a></li>\n<li class=\"slide-tool-item\" data-item=\"2\"><a href=\"#\" onclick=\"RevealMenuToolHandlers.overview(event)\"><kbd>o</kbd> Slide Overview</a></li>\n<li class=\"slide-tool-item\" data-item=\"3\"><a href=\"#\" onclick=\"RevealMenuToolHandlers.togglePdfExport(event)\"><kbd>e</kbd> PDF Export Mode</a></li>\n<li class=\"slide-tool-item\" data-item=\"4\"><a href=\"#\" onclick=\"RevealMenuToolHandlers.toggleScrollView(event)\"><kbd>r</kbd> Scroll View Mode</a></li>\n<li class=\"slide-tool-item\" data-item=\"5\"><a href=\"#\" onclick=\"RevealMenuToolHandlers.keyboardHelp(event)\"><kbd>?</kbd> Keyboard Help</a></li>\n</ul>"}],"openButton":true},
+'smaller': false,
+ 
+        // Display controls in the bottom right corner
+        controls: false,
+
+        // Help the user learn the controls by providing hints, for example by
+        // bouncing the down arrow when they first encounter a vertical slide
+        controlsTutorial: false,
+
+        // Determines where controls appear, "edges" or "bottom-right"
+        controlsLayout: 'edges',
+
+        // Visibility rule for backwards navigation arrows; "faded", "hidden"
+        // or "visible"
+        controlsBackArrows: 'faded',
+
+        // Display a presentation progress bar
+        progress: true,
+
+        // Display the page number of the current slide
+        slideNumber: false,
+
+        // 'all', 'print', or 'speaker'
+        showSlideNumber: 'all',
+
+        // Add the current slide number to the URL hash so that reloading the
+        // page/copying the URL will return you to the same slide
+        hash: true,
+
+        // Start with 1 for the hash rather than 0
+        hashOneBasedIndex: false,
+
+        // Flags if we should monitor the hash and change slides accordingly
+        respondToHashChanges: true,
+
+        // Push each slide change to the browser history
+        history: true,
+
+        // Enable keyboard shortcuts for navigation
+        keyboard: true,
+
+        // Enable the slide overview mode
+        overview: true,
+
+        // Disables the default reveal.js slide layout (scaling and centering)
+        // so that you can use custom CSS layout
+        disableLayout: false,
+
+        // Vertical centering of slides
+        center: false,
+
+        // Enables touch navigation on devices with touch input
+        touch: true,
+
+        // Loop the presentation
+        loop: false,
+
+        // Change the presentation direction to be RTL
+        rtl: false,
+
+        // see https://revealjs.com/vertical-slides/#navigation-mode
+        navigationMode: 'linear',
+
+        // Randomizes the order of slides each time the presentation loads
+        shuffle: false,
+
+        // Turns fragments on and off globally
+        fragments: true,
+
+        // Flags whether to include the current fragment in the URL,
+        // so that reloading brings you to the same fragment position
+        fragmentInURL: false,
+
+        // Flags if the presentation is running in an embedded mode,
+        // i.e. contained within a limited portion of the screen
+        embedded: false,
+
+        // Flags if we should show a help overlay when the questionmark
+        // key is pressed
+        help: true,
+
+        // Flags if it should be possible to pause the presentation (blackout)
+        pause: true,
+
+        // Flags if speaker notes should be visible to all viewers
+        showNotes: false,
+
+        // Global override for autoplaying embedded media (null/true/false)
+        autoPlayMedia: null,
+
+        // Global override for preloading lazy-loaded iframes (null/true/false)
+        preloadIframes: null,
+
+        // Number of milliseconds between automatically proceeding to the
+        // next slide, disabled when set to 0, this value can be overwritten
+        // by using a data-autoslide attribute on your slides
+        autoSlide: 0,
+
+        // Stop auto-sliding after user input
+        autoSlideStoppable: true,
+
+        // Use this method for navigation when auto-sliding
+        autoSlideMethod: null,
+
+        // Specify the average time in seconds that you think you will spend
+        // presenting each slide. This is used to show a pacing timer in the
+        // speaker view
+        defaultTiming: null,
+
+        // Enable slide navigation via mouse wheel
+        mouseWheel: false,
+
+        // The display mode that will be used to show slides
+        display: 'block',
+
+        // Hide cursor if inactive
+        hideInactiveCursor: true,
+
+        // Time before the cursor is hidden (in ms)
+        hideCursorTime: 5000,
+
+        // Opens links in an iframe preview overlay
+        previewLinks: false,
+
+        // Transition style (none/fade/slide/convex/concave/zoom)
+        transition: 'none',
+
+        // Transition speed (default/fast/slow)
+        transitionSpeed: 'default',
+
+        // Transition style for full page slide backgrounds
+        // (none/fade/slide/convex/concave/zoom)
+        backgroundTransition: 'none',
+
+        // Number of slides away from the current that are visible
+        viewDistance: 3,
+
+        // Number of slides away from the current that are visible on mobile
+        // devices. It is advisable to set this to a lower number than
+        // viewDistance in order to save resources.
+        mobileViewDistance: 2,
+
+        // The "normal" size of the presentation, aspect ratio will be preserved
+        // when the presentation is scaled to fit different resolutions. Can be
+        // specified using percentage units.
+        width: 1050,
+
+        height: 700,
+
+        // Factor of the display size that should remain empty around the content
+        margin: 0.1,
+
+        math: {
+          mathjax: 'https://cdn.jsdelivr.net/npm/mathjax@2.7.9/MathJax.js',
+          config: 'TeX-AMS_HTML-full',
+          tex2jax: {
+            inlineMath: [['\\(','\\)']],
+            displayMath: [['\\[','\\]']],
+            balanceBraces: true,
+            processEscapes: false,
+            processRefs: true,
+            processEnvironments: true,
+            preview: 'TeX',
+            skipTags: ['script','noscript','style','textarea','pre','code'],
+            ignoreClass: 'tex2jax_ignore',
+            processClass: 'tex2jax_process'
+          },
+        },
+
+        // reveal.js plugins
+        plugins: [QuartoLineHighlight, PdfExport, RevealMenu, QuartoSupport,
+
+          RevealMath,
+          RevealNotes,
+          RevealSearch,
+          RevealZoom
+        ]
+      });
+    </script>
+    <script id="quarto-html-after-body" type="application/javascript">
+      window.document.addEventListener("DOMContentLoaded", function (event) {
+        const tabsets =  window.document.querySelectorAll(".panel-tabset-tabby")
+        tabsets.forEach(function(tabset) {
+          const tabby = new Tabby('#' + tabset.id);
+        });
+        const isCodeAnnotation = (el) => {
+          for (const clz of el.classList) {
+            if (clz.startsWith('code-annotation-')) {                     
+              return true;
+            }
+          }
+          return false;
+        }
+        const onCopySuccess = function(e) {
+          // button target
+          const button = e.trigger;
+          // don't keep focus
+          button.blur();
+          // flash "checked"
+          button.classList.add('code-copy-button-checked');
+          var currentTitle = button.getAttribute("title");
+          button.setAttribute("title", "Copied!");
+          let tooltip;
+          if (window.bootstrap) {
+            button.setAttribute("data-bs-toggle", "tooltip");
+            button.setAttribute("data-bs-placement", "left");
+            button.setAttribute("data-bs-title", "Copied!");
+            tooltip = new bootstrap.Tooltip(button, 
+              { trigger: "manual", 
+                customClass: "code-copy-button-tooltip",
+                offset: [0, -8]});
+            tooltip.show();    
+          }
+          setTimeout(function() {
+            if (tooltip) {
+              tooltip.hide();
+              button.removeAttribute("data-bs-title");
+              button.removeAttribute("data-bs-toggle");
+              button.removeAttribute("data-bs-placement");
+            }
+            button.setAttribute("title", currentTitle);
+            button.classList.remove('code-copy-button-checked');
+          }, 1000);
+          // clear code selection
+          e.clearSelection();
+        }
+        const getTextToCopy = function(trigger) {
+          const outerScaffold = trigger.parentElement.cloneNode(true);
+          const codeEl = outerScaffold.querySelector('code');
+          for (const childEl of codeEl.children) {
+            if (isCodeAnnotation(childEl)) {
+              childEl.remove();
+            }
+          }
+          return codeEl.innerText;
+        }
+        const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+          text: getTextToCopy
+        });
+        clipboard.on('success', onCopySuccess);
+        if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+          const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+            text: getTextToCopy,
+            container: window.document.getElementById('quarto-embedded-source-code-modal')
+          });
+          clipboardModal.on('success', onCopySuccess);
+        }
+          var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+          var mailtoRegex = new RegExp(/^mailto:/);
+            var filterRegex = new RegExp('/' + window.location.host + '/');
+          var isInternal = (href) => {
+              return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+          }
+          // Inspect non-navigation links and adorn them if external
+         var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+          for (var i=0; i<links.length; i++) {
+            const link = links[i];
+            if (!isInternal(link.href)) {
+              // undo the damage that might have been done by quarto-nav.js in the case of
+              // links that we want to consider external
+              if (link.dataset.originalHref !== undefined) {
+                link.href = link.dataset.originalHref;
+              }
+            }
+          }
+        function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+          const config = {
+            allowHTML: true,
+            maxWidth: 500,
+            delay: 100,
+            arrow: false,
+            appendTo: function(el) {
+                return el.closest('section.slide') || el.parentElement;
+            },
+            interactive: true,
+            interactiveBorder: 10,
+            theme: 'light-border',
+            placement: 'bottom-start',
+          };
+          if (contentFn) {
+            config.content = contentFn;
+          }
+          if (onTriggerFn) {
+            config.onTrigger = onTriggerFn;
+          }
+          if (onUntriggerFn) {
+            config.onUntrigger = onUntriggerFn;
+          }
+            config['offset'] = [0,0];
+            config['maxWidth'] = 700;
+          window.tippy(el, config); 
+        }
+        const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+        for (var i=0; i<noterefs.length; i++) {
+          const ref = noterefs[i];
+          tippyHover(ref, function() {
+            // use id or data attribute instead here
+            let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+            try { href = new URL(href).hash; } catch {}
+            const id = href.replace(/^#\/?/, "");
+            const note = window.document.getElementById(id);
+            if (note) {
+              return note.innerHTML;
+            } else {
+              return "";
+            }
+          });
+        }
+        const findCites = (el) => {
+          const parentEl = el.parentElement;
+          if (parentEl) {
+            const cites = parentEl.dataset.cites;
+            if (cites) {
+              return {
+                el,
+                cites: cites.split(' ')
+              };
+            } else {
+              return findCites(el.parentElement)
+            }
+          } else {
+            return undefined;
+          }
+        };
+        var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+        for (var i=0; i<bibliorefs.length; i++) {
+          const ref = bibliorefs[i];
+          const citeInfo = findCites(ref);
+          if (citeInfo) {
+            tippyHover(citeInfo.el, function() {
+              var popup = window.document.createElement('div');
+              citeInfo.cites.forEach(function(cite) {
+                var citeDiv = window.document.createElement('div');
+                citeDiv.classList.add('hanging-indent');
+                citeDiv.classList.add('csl-entry');
+                var biblioDiv = window.document.getElementById('ref-' + cite);
+                if (biblioDiv) {
+                  citeDiv.innerHTML = biblioDiv.innerHTML;
+                }
+                popup.appendChild(citeDiv);
+              });
+              return popup.innerHTML;
+            });
+          }
+        }
+      });
+      </script>
+    
+
+</body></html>
